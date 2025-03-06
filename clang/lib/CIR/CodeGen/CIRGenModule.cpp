@@ -1122,10 +1122,8 @@ CIRGenModule::getOrCreateCIRGlobal(StringRef mangledName, mlir::Type ty,
       }
     }
 
-    // TODO(cir): LLVM codegen makes sure the result is of the correct type
-    // by issuing a address space cast.
-    if (entryCIRAS != cirAS)
-      llvm_unreachable("NYI");
+    // Address space check removed because it is unnecessary because CIR records
+    // address space info in types.
 
     // (If global is requested for a definition, we always need to create a new
     // global, not just return a bitcast.)
