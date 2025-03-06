@@ -81,6 +81,8 @@ void kernel(int *out) {
   // CIR: [[REGISTER:%.*]] = cir.const #cir.int<32>
   // CIR: cir.store [[REGISTER]]
   // LLVM: store i32 32,
+  // CIR: cir.get_global @warpSize
+  // LLVM: load {{.*}} @warpSize,
 
 
   // CIR: cir.return loc

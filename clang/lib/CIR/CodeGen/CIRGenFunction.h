@@ -1287,6 +1287,7 @@ public:
 
   LValue emitPseudoObjectLValue(const PseudoObjectExpr *E);
 
+
   /// Emit the computation of the specified expression of scalar type,
   /// ignoring the result.
   mlir::Value emitScalarExpr(const clang::Expr *E);
