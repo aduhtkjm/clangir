@@ -12,7 +12,7 @@
 
 !struct_with_bool = !cir.struct<struct "struct_with_bool" {!u32i, !cir.bool}>
 
-module {
+module attributes {cir.type_size_info = #cir.type_size_info<char = 8, int = 32, size_t = 64>} {
   cir.func @test() {
     %1 = cir.alloca !ty_S, !cir.ptr<!ty_S>, ["x"] {alignment = 4 : i64}
     // CHECK: %[[#ARRSIZE:]] = llvm.mlir.constant(1 : index) : i64

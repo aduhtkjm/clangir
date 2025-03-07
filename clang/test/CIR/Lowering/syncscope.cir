@@ -2,7 +2,7 @@
 
 !s32i = !cir.int<s, 32>
 #fn_attr = #cir<extra({inline = #cir.inline<no>, nothrow = #cir.nothrow, optnone = #cir.optnone})>
-module {
+module attributes {cir.type_size_info = #cir.type_size_info<char = 8, int = 32, size_t = 64>} {
   cir.func @test(%ptr: !cir.ptr<!s32i>, %expected: !s32i, %desired: !s32i) -> !cir.bool extra(#fn_attr) {
     %old, %cmp = cir.atomic.cmp_xchg(%ptr : !cir.ptr<!s32i>, %expected : !s32i, %desired : !s32i, success = acquire, failure = acquire) syncscope(single_thread) align(4) : (!s32i, !cir.bool)
     cir.return %cmp: !cir.bool

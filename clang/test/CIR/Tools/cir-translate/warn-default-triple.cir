@@ -1,7 +1,7 @@
 // RUN: cir-translate -verify-diagnostics --cir-to-llvmir --disable-cc-lowering %s
 
 // expected-warning@below {{no target triple provided, assuming x86_64-unknown-linux-gnu}}
-module {
+module attributes {cir.type_size_info = #cir.type_size_info<char = 8, int = 32, size_t = 64>} {
   cir.func @foo() {
     cir.return
   }

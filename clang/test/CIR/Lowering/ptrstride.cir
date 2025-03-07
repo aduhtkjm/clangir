@@ -4,7 +4,7 @@
 !s32i = !cir.int<s, 32>
 !u64i = !cir.int<u, 64>
 
-module {
+module attributes {cir.type_size_info = #cir.type_size_info<char = 8, int = 32, size_t = 64>} {
   cir.func @f(%arg0: !cir.ptr<!s32i>) {
     %0 = cir.alloca !cir.ptr<!s32i>, !cir.ptr<!cir.ptr<!s32i>>, ["a", init] {alignment = 8 : i64}
     cir.store %arg0, %0 : !cir.ptr<!s32i>, !cir.ptr<!cir.ptr<!s32i>>

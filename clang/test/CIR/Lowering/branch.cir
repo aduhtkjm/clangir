@@ -2,17 +2,19 @@
 // RUN: cir-translate %s -cir-to-llvmir --disable-cc-lowering  | FileCheck %s -check-prefix=LLVM
 
 !s32i = !cir.int<s, 32>
-cir.func @foo(%arg0: !cir.bool) -> !s32i {
-  cir.brcond %arg0 ^bb1, ^bb2
-  ^bb1:
-    %0 = cir.const #cir.int<1>: !s32i
-    cir.return %0 : !s32i
-  ^bb2:
-    %1 = cir.const #cir.int<0>: !s32i
-    cir.return %1 : !s32i
+module attributes {cir.type_size_info = #cir.type_size_info<char = 8, int = 32, size_t = 64>} {
+  cir.func @foo(%arg0: !cir.bool) -> !s32i {
+    cir.brcond %arg0 ^bb1, ^bb2
+    ^bb1:
+      %0 = cir.const #cir.int<1>: !s32i
+      cir.return %0 : !s32i
+    ^bb2:
+      %1 = cir.const #cir.int<0>: !s32i
+      cir.return %1 : !s32i
+  }
 }
 
-//      MLIR: module {
+//      MLIR: module attributes {cir.type_size_info = #cir.type_size_info<char = 8, int = 32, size_t = 64>} {
 // MLIR-NEXT:   llvm.func @foo(%arg0: i1) -> i32
 // MLIR-NEXT:     llvm.cond_br %arg0, ^bb1, ^bb2
 // MLIR-NEXT:   ^bb1:  // pred: ^bb0

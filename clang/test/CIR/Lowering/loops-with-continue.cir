@@ -2,7 +2,7 @@
 // RUN: FileCheck --input-file=%t.mlir %s
 
 !s32i = !cir.int<s, 32>
-module {
+module attributes {cir.type_size_info = #cir.type_size_info<char = 8, int = 32, size_t = 64>} {
   cir.func @testFor() {
     cir.scope {
       %0 = cir.alloca !s32i, !cir.ptr<!s32i>, ["i", init] {alignment = 4 : i64}

@@ -2,7 +2,7 @@
 
 !s32i = !cir.int<s, 32>
 
-module {
+module attributes {cir.type_size_info = #cir.type_size_info<char = 8, int = 32, size_t = 64>} {
   cir.global "private" internal @const_array = #cir.const_array<[#cir.int<1> : !s32i]> : !cir.array<!s32i x 1> {section = ".abc"}
   // LLVM: @const_array = internal global [1 x i32] [i32 1], section ".abc"
 

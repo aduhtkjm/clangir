@@ -3,7 +3,7 @@
 
 !void = !cir.void
 !u8i = !cir.int<u, 8>
-module {
+module attributes {cir.type_size_info = #cir.type_size_info<char = 8, int = 32, size_t = 64>} {
   cir.global external @testVTable = #cir.vtable<{#cir.const_array<[#cir.ptr<-8> : !cir.ptr<!u8i>]> : !cir.array<!cir.ptr<!u8i> x 1>}> : !cir.struct<struct {!cir.array<!cir.ptr<!u8i> x 1>}>
   // CHECK: llvm.mlir.constant(-8 : i64) : i64
   // CHECK:  llvm.inttoptr %{{[0-9]+}} : i64 to !llvm.ptr

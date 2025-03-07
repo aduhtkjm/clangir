@@ -8,7 +8,7 @@
 !u8i = !cir.int<u, 8>
 !void = !cir.void
 
-module @"try-catch.cpp" attributes {cir.lang = #cir.lang<cxx>, cir.sob = #cir.signed_overflow_behavior<undefined>} {
+module @"try-catch.cpp" attributes {cir.lang = #cir.lang<cxx>, cir.sob = #cir.signed_overflow_behavior<undefined>, cir.type_size_info = #cir.type_size_info<char = 8, int = 32, size_t = 64>} {
   cir.global "private" constant external @_ZTIi : !cir.ptr<!u8i>
   cir.global "private" constant external @_ZTIPKc : !cir.ptr<!u8i>
   cir.func private @_Z8divisionii(!s32i, !s32i) -> !cir.double

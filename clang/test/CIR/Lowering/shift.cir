@@ -5,7 +5,7 @@
 !s32i = !cir.int<s, 32>
 !s64i = !cir.int<s, 64>
 !u16i = !cir.int<u, 16>
-module {
+module attributes {cir.type_size_info = #cir.type_size_info<char = 8, int = 32, size_t = 64>} {
   cir.func @testShiftWithDifferentValueAndAmountTypes(%arg0: !s16i, %arg1: !s32i, %arg2: !s64i, %arg3: !u16i) {
   // CHECK: testShiftWithDifferentValueAndAmountTypes
 

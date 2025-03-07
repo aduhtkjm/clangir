@@ -2,7 +2,7 @@
 // RUN: FileCheck --input-file=%t.mlir %s -check-prefix=MLIR
 
 !s32i = !cir.int<s, 32>
-module {
+module attributes {cir.type_size_info = #cir.type_size_info<char = 8, int = 32, size_t = 64>} {
   cir.func @dot(%arg0: !cir.ptr<!cir.double>, %arg1: !cir.ptr<!cir.double>, %arg2: !s32i) -> !cir.double {
     %0 = cir.alloca !cir.ptr<!cir.double>, !cir.ptr<!cir.ptr<!cir.double>>, ["a", init] {alignment = 8 : i64}
     %1 = cir.alloca !cir.ptr<!cir.double>, !cir.ptr<!cir.ptr<!cir.double>>, ["b", init] {alignment = 8 : i64}

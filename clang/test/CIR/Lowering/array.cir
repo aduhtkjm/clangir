@@ -4,13 +4,13 @@
 !s32i = !cir.int<s, 32>
 !ty_S = !cir.struct<struct "S" {!s32i} #cir.record.decl.ast>
 
-module {
+module attributes {cir.type_size_info = #cir.type_size_info<char = 8, int = 32, size_t = 64>} {
   cir.func @foo() {
     %0 = cir.alloca !cir.array<i32 x 10>, !cir.ptr<!cir.array<i32 x 10>>, ["a"] {alignment = 16 : i64}
     cir.return
   }
 
-//      MLIR: module {
+//      MLIR: module attributes {{.*}} {
 // MLIR-NEXT: func @foo()
 // MLIR-NEXT:  %0 = llvm.mlir.constant(1 : index) : i64
 // MLIR-NEXT:  %1 = llvm.alloca %0 x !llvm.array<10 x i32> {alignment = 16 : i64} : (i64) -> !llvm.ptr
