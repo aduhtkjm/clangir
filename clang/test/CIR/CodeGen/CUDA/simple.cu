@@ -22,7 +22,8 @@ __device__ void device_fn(int* a, double b, float c) {}
 // CIR-DEVICE: cir.func @_Z9device_fnPidf
 
 __global__ void global_fn(int a) {}
-// CIR-DEVICE: @_Z9global_fni
+// CIR-DEVICE: @_Z9global_fni({{.*}} cc(ptx_kernel)
+// LLVM-DEVICE: define dso_local ptx_kernel void @_Z9global_fni
 
 // Check for device stub emission.
 
@@ -62,9 +63,9 @@ int main() {
 // LLVM-HOST: call void @_ZN4dim3C1Ejjj
 // LLVM-HOST: call void @_ZN4dim3C1Ejjj
 // LLVM-HOST: [[LLVMConfigOK:%[0-9]+]] = call i32 @__cudaPushCallConfiguration
-// LLVM-HOST: br [[LLVMConfigOK]], label %[[#Good:]], label [[#Bad:]]
-// LLVM-HOST: [[#Good]]:
-// LLVM-HOST:   br label [[#End:]]
-// LLVM-HOST: [[#Bad]]:
+// LLVM-HOST: br [[LLVMConfigOK]], label %[[Good:[0-9]+]], label [[Bad:[0-9]+]]
+// LLVM-HOST: [[Good]]:
 // LLVM-HOST:   call void @_Z24__device_stub__global_fni
-// LLVM-HOST:   br label [[#End]]
+// LLVM-HOST:   br label [[Bad]]
+// LLVM-HOST: [[Bad]]:
+// LLVM-HOST:   ret i32
