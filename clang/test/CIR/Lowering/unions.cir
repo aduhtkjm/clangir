@@ -7,7 +7,7 @@
 !ty_U1_ = !cir.struct<union "U1" {!cir.bool, !s16i, !s32i} #cir.record.decl.ast>
 !ty_U2_ = !cir.struct<union "U2" {f64, !ty_U1_} #cir.record.decl.ast>
 !ty_U3_ = !cir.struct<union "U3" {!s16i, !ty_U1_} #cir.record.decl.ast>
-module {
+module attributes {cir.type_size_info = #cir.type_size_info<char = 8, int = 32, size_t = 64>} {
   // Should lower union to struct with only the largest member.
   cir.global external @u1 = #cir.zero : !ty_U1_
   // CHECK: llvm.mlir.global external @u1() {addr_space = 0 : i32} : !llvm.struct<"union.U1", (i32)>

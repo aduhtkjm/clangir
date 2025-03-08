@@ -3,7 +3,7 @@
 
 !s32i = !cir.int<s, 32>
 
-module {
+module attributes {cir.type_size_info = #cir.type_size_info<char = 8, int = 32, size_t = 64>} {
   cir.func @select_int(%arg0 : !cir.bool, %arg1 : !s32i, %arg2 : !s32i) -> !s32i {
     %0 = cir.select if %arg0 then %arg1 else %arg2 : (!cir.bool, !s32i, !s32i) -> !s32i
     cir.return %0 : !s32i

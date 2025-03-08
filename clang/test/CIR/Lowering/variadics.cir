@@ -7,7 +7,7 @@
 
 !ty___va_list_tag = !cir.struct<struct "__va_list_tag" {!u32i, !u32i, !cir.ptr<!u8i>, !cir.ptr<!u8i>} #cir.record.decl.ast>
 
-module {
+module attributes {cir.type_size_info = #cir.type_size_info<char = 8, int = 32, size_t = 64>} {
   cir.func @average(%arg0: !s32i, ...) -> !s32i {
     %0 = cir.alloca !s32i, !cir.ptr<!s32i>, ["count", init] {alignment = 4 : i64}
     %1 = cir.alloca !s32i, !cir.ptr<!s32i>, ["__retval"] {alignment = 4 : i64}

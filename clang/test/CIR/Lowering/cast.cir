@@ -9,7 +9,7 @@
 !u8i = !cir.int<u, 8>
 !u64i = !cir.int<u, 64>
 
-module {
+module attributes {cir.type_size_info = #cir.type_size_info<char = 8, int = 32, size_t = 64>} {
   cir.func @cStyleCasts(%arg0: !u32i, %arg1: !s32i, %arg2: !cir.float, %arg3: !cir.double) -> !s32i {
   // CHECK: llvm.func @cStyleCasts
     %0 = cir.alloca !u32i, !cir.ptr<!u32i>, ["x1", init] {alignment = 4 : i64}

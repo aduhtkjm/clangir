@@ -1,7 +1,7 @@
 // RUN: cir-translate --cir-to-llvmir --target x86_64-unknown-linux-gnu --disable-cc-lowering %s -o %t.ll
 // RUN: FileCheck %s -input-file %t.ll -check-prefix=LLVM
 
-module {
+module attributes {cir.type_size_info = #cir.type_size_info<char = 8, int = 32, size_t = 64>} {
   cir.func @foo() {
     cir.return
   }

@@ -2,7 +2,7 @@
 // RUN: FileCheck %s --input-file=%t.cir -check-prefix=MLIR
 !u32i = !cir.int<u, 32>
 
-module {
+module attributes {cir.type_size_info = #cir.type_size_info<char = 8, int = 32, size_t = 64>} {
   cir.func @foo() -> !u32i {
     %0 = cir.alloca !u32i, !cir.ptr<!u32i>, ["x", init] {alignment = 4 : i64}
     %1 = cir.const #cir.int<1> : !u32i
@@ -20,7 +20,7 @@ module {
   }
 
 
-//      MLIR: module {
+//      MLIR: module attributes {{.*}} {
 // MLIR-NEXT:   func @foo() -> i32
 // MLIR-NEXT:     %0 = llvm.mlir.constant(1 : index) : i64
 // MLIR-NEXT:     %1 = llvm.alloca %0 x i32 {alignment = 4 : i64} : (i64) -> !llvm.ptr

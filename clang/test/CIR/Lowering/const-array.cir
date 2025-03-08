@@ -4,7 +4,7 @@
 #false = #cir.bool<false> : !cir.bool
 #true = #cir.bool<true> : !cir.bool
 
-module {
+module attributes {cir.type_size_info = #cir.type_size_info<char = 8, int = 32, size_t = 64>} {
   cir.global "private" internal @normal_url_char = #cir.const_array<[#cir.int<0> : !u8i, #cir.int<1> : !u8i], trailing_zeros> : !cir.array<!u8i x 4>
   // LLVM: @normal_url_char = internal global [4 x i8] c"\00\01\00\00"
 

@@ -2,7 +2,7 @@
 // RUN: cir-translate %s -cir-to-llvmir --disable-cc-lowering  | FileCheck %s -check-prefix=LLVM
 
 !s64i = !cir.int<s, 64>
-module {
+module attributes {cir.type_size_info = #cir.type_size_info<char = 8, int = 32, size_t = 64>} {
   cir.func @foo(%arg0: !s64i) {
     %0 = cir.const #cir.int<1> : !s64i
     %1 = cir.expect(%arg0, %0) : !s64i

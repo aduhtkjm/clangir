@@ -1,7 +1,7 @@
 // RUN: cir-opt %s -cir-to-llvm -o %t.ll
 // RUN: FileCheck --input-file=%t.ll %s
 
-module {
+module attributes {cir.type_size_info = #cir.type_size_info<char = 8, int = 32, size_t = 64>} {
   cir.func @test(%arg0 : !cir.float, %arg1 : !cir.vector<!cir.double x 2>, %arg2 : !cir.vector<!cir.float x 4>) {
     %1 = cir.cos %arg0 : !cir.float
     // CHECK: llvm.intr.cos(%arg0) : (f32) -> f32

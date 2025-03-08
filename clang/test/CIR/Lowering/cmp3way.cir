@@ -7,7 +7,7 @@
 
 #cmp3way_info = #cir.cmp3way_info<strong, lt = -1, eq = 0, gt = 1>
 
-module {
+module attributes {cir.type_size_info = #cir.type_size_info<char = 8, int = 32, size_t = 64>} {
   cir.func @test_scmp(%arg0 : !s32i, %arg1 : !s32i) -> !s8i {
     %0 = cir.cmp3way(%arg0 : !s32i, %arg1, #cmp3way_info) : !s8i
     cir.return %0 : !s8i
