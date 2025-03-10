@@ -1599,6 +1599,9 @@ void LoweringPreparePass::runOnOperation() {
     datalayout.emplace(theModule);
   }
 
+  auto typeSizeInfo = cast<TypeSizeInfoAttr>(
+      theModule->getAttr(CIRDialect::getTypeSizeInfoAttrName()));
+
   llvm::SmallVector<Operation *> opsToTransform;
 
   op->walk([&](Operation *op) {
