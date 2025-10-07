@@ -43,6 +43,9 @@ std::unique_ptr<Pass> createGotoSolverPass();
 /// Create a pass to lower ABI-independent function definitions/calls.
 std::unique_ptr<Pass> createCallConvLoweringPass();
 
+// Falcon Passes.
+std::unique_ptr<Pass> createCIRRaiseToAffinePass();
+
 void populateCIRPreLoweringPasses(mlir::OpPassManager &pm, bool useCCLowering);
 
 //===----------------------------------------------------------------------===//
@@ -52,6 +55,8 @@ void populateCIRPreLoweringPasses(mlir::OpPassManager &pm, bool useCCLowering);
 /// Generate the code for registering passes.
 #define GEN_PASS_REGISTRATION
 #include "clang/CIR/Dialect/Passes.h.inc"
+#define GEN_PASS_REGISTRATION
+#include "clang/CIR/Dialect/FalconPasses.h.inc"
 
 } // namespace mlir
 

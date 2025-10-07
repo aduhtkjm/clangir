@@ -1,3 +1,4 @@
+add_subdirectory(Falcon)
 add_subdirectory(TargetLowering)
 
 add_clang_library(MLIRCIRTransforms
@@ -22,6 +23,7 @@ add_clang_library(MLIRCIRTransforms
   clangAST
   clangBasic
   TargetLowering
+  Falcon
 
   MLIRAnalysis
   MLIRIR

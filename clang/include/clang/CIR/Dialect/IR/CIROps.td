@@ -1153,7 +1153,8 @@ def CIR_ResumeOp : CIR_Op<"resume", [
 
 def CIR_ScopeOp : CIR_Op<"scope", [
   DeclareOpInterfaceMethods<RegionBranchOpInterface>,
-  RecursivelySpeculatable, AutomaticAllocationScope, NoRegionArguments
+  RecursivelySpeculatable, AutomaticAllocationScope, NoRegionArguments,
+  AffineScope
 ]> {
   let summary = "Represents a C/C++ scope";
   let description = [{
@@ -3999,7 +4000,7 @@ def FuncOp : CIR_Op<"func", [
   AutomaticAllocationScope, CallableOpInterface, FunctionOpInterface,
   DeclareOpInterfaceMethods<CIRGlobalValueInterface>,
   HasAtMostOneOfAttrs<["global_ctor_priority", "global_dtor_priority"]>,
-  IsolatedFromAbove
+  IsolatedFromAbove, AffineScope
 ]> {
   let summary = "Declare or define a function";
   let description = [{
@@ -6320,5 +6321,6 @@ def CIR_BlockAddressOp : CIR_Op<"blockaddress", [Pure]> {
 //===----------------------------------------------------------------------===//
 
 include "clang/CIR/Dialect/IR/CIRStdOps.td"
+include "clang/CIR/Dialect/IR/CIRFalconOps.td"
 
 #endif // LLVM_CLANG_CIR_DIALECT_IR_CIROPS

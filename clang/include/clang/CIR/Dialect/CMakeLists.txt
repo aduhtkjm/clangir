@@ -23,6 +23,12 @@ set(LLVM_TARGET_DEFINITIONS Passes.td)
 mlir_tablegen(Passes.h.inc -gen-pass-decls -name CIR)
 mlir_tablegen(Passes.capi.h.inc -gen-pass-capi-header --prefix CIR)
 mlir_tablegen(Passes.capi.cpp.inc -gen-pass-capi-impl --prefix CIR)
+
+set(LLVM_TARGET_DEFINITIONS FalconPasses.td)
+mlir_tablegen(FalconPasses.h.inc -gen-pass-decls -name Falcon)
+mlir_tablegen(FalconPasses.capi.h.inc -gen-pass-capi-header --prefix Falcon)
+mlir_tablegen(FalconPasses.capi.cpp.inc -gen-pass-capi-impl --prefix Falcon)
+
 add_public_tablegen_target(MLIRCIRPassIncGen)
 add_dependencies(mlir-headers MLIRCIRPassIncGen)
 add_clang_mlir_doc(Passes CIRPasses ./ -gen-pass-doc)

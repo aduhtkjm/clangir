@@ -311,6 +311,7 @@ bool ExecuteCompilerInvocation(CompilerInstance *Clang) {
 #if CLANG_ENABLE_CIR
   if (!Clang->getFrontendOpts().MLIRArgs.empty()) {
     mlir::registerCIRPasses();
+    mlir::registerFalconPasses();
     mlir::registerMLIRContextCLOptions();
     mlir::registerPassManagerCLOptions();
     mlir::registerAsmPrinterCLOptions();

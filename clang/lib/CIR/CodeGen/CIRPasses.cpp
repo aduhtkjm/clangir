@@ -84,6 +84,8 @@ mlir::LogicalResult runCIRToCIRPasses(
   if (throughMLIR)
     pm.addPass(mlir::createSCFPreparePass());
 
+  pm.addPass(mlir::createCIRRaiseToAffinePass());
+
   // FIXME: once CIRCodenAction fixes emission other than CIR we
   // need to run this right before dialect emission.
   pm.addPass(mlir::createDropASTPass());

@@ -1,0 +1,30 @@
+//===- PassDetail.h - CIR Pass class details --------------------*- C++ -*-===//
+//
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+//
+//===----------------------------------------------------------------------===//
+
+#ifndef DIALECT_CIR_TRANSFORMS_FALCON_PASSDETAIL_H_
+#define DIALECT_CIR_TRANSFORMS_FALCON_PASSDETAIL_H_
+
+#include "mlir/IR/Dialect.h"
+#include "mlir/Pass/Pass.h"
+#include "mlir/Dialect/Affine/IR/AffineOps.h"
+
+namespace cir {
+class CIRDialect;
+} // namespace cir
+
+namespace mlir {
+// Forward declaration from Dialect.h
+template <typename ConcreteDialect>
+void registerDialect(DialectRegistry &registry);
+
+#define GEN_PASS_CLASSES
+#include "clang/CIR/Dialect/FalconPasses.h.inc"
+
+} // namespace mlir
+
+#endif // DIALECT_CIR_TRANSFORMS_PASSDETAIL_H_
