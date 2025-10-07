@@ -39,12 +39,14 @@ std::unique_ptr<Pass> createLibOptPass(clang::ASTContext *astCtx);
 std::unique_ptr<Pass> createFlattenCFGPass();
 std::unique_ptr<Pass> createHoistAllocasPass();
 std::unique_ptr<Pass> createGotoSolverPass();
+std::unique_ptr<Pass> createConstFoldPass();
 
 /// Create a pass to lower ABI-independent function definitions/calls.
 std::unique_ptr<Pass> createCallConvLoweringPass();
 
 // Falcon Passes.
 std::unique_ptr<Pass> createCIRRaiseToAffinePass();
+std::unique_ptr<Pass> createCIRFindOffsetPass();
 
 void populateCIRPreLoweringPasses(mlir::OpPassManager &pm, bool useCCLowering);
 

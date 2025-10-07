@@ -1533,4 +1533,6 @@ include "clang/CIR/Dialect/IR/CIRTBAAAttrs.td"
 include "clang/CIR/Dialect/IR/CIROpenCLAttrs.td"
 include "clang/CIR/Dialect/IR/CIRCUDAAttrs.td"
 
+include "clang/CIR/Dialect/IR/CIRFalconAttrs.td"
+
 #endif // CLANG_CIR_DIALECT_IR_CIRATTRS_TD

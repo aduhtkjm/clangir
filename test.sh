@@ -7,6 +7,11 @@ while [[ $# -gt 0 ]]; do
       testcase=$2; shift 2;;
     -v|--verbose)
       verbose=1; shift;;
+    -f|--fix)
+      rm -f build/bin/clang build/bin/clang++
+      ln -s /usr/local/bin/clang build/bin/clang
+      ln -s /usr/local/bin/clang++ build/bin/clang++
+      shift;;
     *) echo "unknown option: $1"; failed=1; shift;;
   esac
 done

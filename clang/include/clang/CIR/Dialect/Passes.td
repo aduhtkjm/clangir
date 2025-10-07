@@ -191,4 +191,13 @@ def CallConvLowering : Pass<"cir-call-conv-lowering"> {
   let dependentDialects = ["cir::CIRDialect"];
 }
 
+def ConstFold : Pass<"cir-const-fold"> {
+  let summary = "Do constant folding";
+  let description = [{
+    This pass does basic constant folding.
+  }];
+  let constructor = "mlir::createConstFoldPass()";
+  let dependentDialects = ["cir::CIRDialect"];
+}
+
 #endif // MLIR_DIALECT_CIR_PASSES
