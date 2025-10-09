@@ -1,7 +1,7 @@
 #ifndef LLVM_CLANG_CIR_DIALECT_IR_CIRFALCONOPS
 #define LLVM_CLANG_CIR_DIALECT_IR_CIRFALCONOPS
 
-def CIR_IndexCastOp : CIR_Op<"index_cast", []> {
+def CIR_IndexCastOp : CIR_Op<"index_cast", [Pure]> {
   let summary = "Cast a CIR integer to the builtin index type.";
   let description = [{
   }];
@@ -13,7 +13,7 @@ def CIR_IndexCastOp : CIR_Op<"index_cast", []> {
   }];
 }
 
-def CIR_FromIndexOp : CIR_Op<"from_index", []> {
+def CIR_FromIndexOp : CIR_Op<"from_index", [Pure]> {
   let summary = "Cast the builtin index type to a CIR integer type.";
   let description = [{
   }];

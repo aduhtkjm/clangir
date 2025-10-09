@@ -42,9 +42,9 @@
 #include "mlir/IR/TypeUtilities.h"
 #include "mlir/Interfaces/DataLayoutInterfaces.h"
 #include "mlir/Interfaces/FunctionImplementation.h"
-#include "mlir/Interfaces/InferTypeOpInterface.h"
 #include "mlir/Support/LLVM.h"
 #include "mlir/Support/LogicalResult.h"
+#include "mlir/Transforms/InliningUtils.h"
 
 using namespace mlir;
 
@@ -121,6 +121,34 @@ struct CIROpAsmDialectInterface : public OpAsmDialectInterface {
         .Default([](Attribute) { return AliasResult::NoAlias; });
   }
 };
+
+struct CIRInlinerInterface : public DialectInlinerInterface {
+  using DialectInlinerInterface::DialectInlinerInterface;
+
+  bool isLegalToInline(Operation *call, Operation *callable, bool wouldBeCloned) const final {
+    return true;
+  }
+
+  bool isLegalToInline(Operation *call, Region *region, bool wouldbeCloned,
+                       IRMapping &mapping) const final {
+    return true;
+  }
+
+  bool isLegalToInline(Region *dest, Region *src, bool wouldBeCloned,
+                       IRMapping &valueMapping) const final {
+    return true;
+  }
+
+  void handleTerminator(Operation *op,
+                        ValueRange valuesToRepl) const final {
+    auto returnOp = cast<cir::ReturnOp>(op);
+
+    // Replace the values directly with the return operands.
+    assert(returnOp.getNumOperands() == valuesToRepl.size());
+    for (const auto &it : llvm::enumerate(returnOp.getOperands()))
+      valuesToRepl[it.index()].replaceAllUsesWith(it.value());
+  }
+};
 } // namespace
 
 /// Dialect initialization, the instance will be owned by the context. This is
@@ -132,7 +160,7 @@ void cir::CIRDialect::initialize() {
 #define GET_OP_LIST
 #include "clang/CIR/Dialect/IR/CIROps.cpp.inc"
       >();
-  addInterfaces<CIROpAsmDialectInterface>();
+  addInterfaces<CIROpAsmDialectInterface, CIRInlinerInterface>();
 }
 
 Operation *cir::CIRDialect::materializeConstant(mlir::OpBuilder &builder,

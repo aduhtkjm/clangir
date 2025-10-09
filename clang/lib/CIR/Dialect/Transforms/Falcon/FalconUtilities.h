@@ -10,5 +10,15 @@ llvm::SmallVector<T> findAll(mlir::Operation *op) {
   });
   return subops;
 }
+
+template<class T, class ...Args>
+void setAttr(mlir::Operation *op, Args ...args) {
+  op->setAttr(T::getMnemonic(), T::get(args...));
+}
+
+template<class T>
+T getAttr(mlir::Operation *op) {
+  return cast<T>(op->getAttr(T::getMnemonic()));
+}
   
 } // namespace mlir

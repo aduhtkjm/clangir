@@ -13,8 +13,10 @@
 #include "CIRGenModule.h"
 
 #include "mlir/Dialect/DLTI/DLTI.h"
+#include "mlir/Dialect/Func/Extensions/InlinerExtension.h"
 #include "mlir/Dialect/Func/IR/FuncOps.h"
 #include "mlir/Dialect/LLVMIR/LLVMDialect.h"
+#include "mlir/Dialect/LLVMIR/Transforms/InlinerInterfaceImpl.h"
 #include "mlir/Dialect/MemRef/IR/MemRef.h"
 #include "mlir/Dialect/OpenMP/OpenMPDialect.h"
 #include "mlir/IR/MLIRContext.h"
@@ -59,8 +61,14 @@ void CIRGenerator::Initialize(ASTContext &astContext) {
   mlirContext->getOrLoadDialect<mlir::LLVM::LLVMDialect>();
   mlirContext->getOrLoadDialect<mlir::memref::MemRefDialect>();
   mlirContext->getOrLoadDialect<mlir::omp::OpenMPDialect>();
+
+  mlir::DialectRegistry registry;
+  mlir::LLVM::registerInlinerInterface(registry);
+  mlir::func::registerInlinerExtension(registry);
+  mlirContext->appendDialectRegistry(registry);
+
   CGM = std::make_unique<clang::CIRGen::CIRGenModule>(
-      *mlirContext.get(), astContext, codeGenOpts, Diags);
+      *mlirContext, astContext, codeGenOpts, Diags);
   auto mod = CGM->getModule();
   auto layout =
       llvm::DataLayout(astContext.getTargetInfo().getDataLayoutString());

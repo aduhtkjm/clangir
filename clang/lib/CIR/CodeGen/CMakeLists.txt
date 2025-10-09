@@ -72,6 +72,8 @@ add_clang_library(clangCIR
   MLIRIR
   MLIRLLVMCommonConversion
   MLIRLLVMDialect
+  MLIRFuncDialect
+  MLIRFuncInlinerExtension
   MLIROpenMPDialect
   MLIRLLVMToLLVMIRTranslation
   MLIRMemRefDialect

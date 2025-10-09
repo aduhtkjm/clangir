@@ -84,8 +84,10 @@ mlir::LogicalResult runCIRToCIRPasses(
   if (throughMLIR)
     pm.addPass(mlir::createSCFPreparePass());
 
+  pm.addPass(mlir::createInlinerPass());
   pm.addPass(mlir::createConstFoldPass());
   pm.addPass(mlir::createCIRRaiseToAffinePass());
+  pm.addPass(mlir::createCSEPass());
   pm.addPass(mlir::createCIRFindOffsetPass());
 
   // FIXME: once CIRCodenAction fixes emission other than CIR we
