@@ -66,6 +66,11 @@ inline PolyhedronH defineHRep(int numVars, int numSymbols = 0) {
                                                   /*numLocals=*/0));
 }
 
+/// Barvinok's algorithm only deals with inequalities. We have to find a 
+/// bijection between integers in the input polyhedron and those in a
+/// polyhedron without equalities.
+PolyhedronH eliminateEqualities(const PolyhedronH &poly);
+
 /// Get the index of a cone, i.e., the volume of the parallelepiped
 /// spanned by its generators, which is equal to the number of integer
 /// points in its fundamental parallelepiped.

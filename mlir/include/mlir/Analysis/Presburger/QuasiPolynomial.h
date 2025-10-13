@@ -69,6 +69,9 @@ public:
 
   Fraction getConstantTerm();
 
+  void print(llvm::raw_ostream &os);
+  void dump() { print(llvm::errs()); }
+
 private:
   SmallVector<Fraction> coefficients;
   std::vector<std::vector<SmallVector<Fraction>>> affine;

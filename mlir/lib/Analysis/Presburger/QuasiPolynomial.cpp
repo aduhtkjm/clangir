@@ -171,3 +171,19 @@ Fraction QuasiPolynomial::getConstantTerm() {
       constTerm += coefficients[i];
   return constTerm;
 }
+
+void QuasiPolynomial::print(llvm::raw_ostream &os) {
+  for (unsigned i = 0, e = affine.size(); i < e; i++) {
+    if (i != 0)
+      os << " + ";
+
+    os << coefficients[i] << " * [";
+    for (unsigned j = 0, f = affine[i].size(); j < f; j++) {
+      if (j != 0)
+        os << " * ";
+      
+      llvm::interleaveComma(affine[i][j], os);
+    }
+    os << "]";
+  }
+}

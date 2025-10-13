@@ -18,7 +18,14 @@ void setAttr(mlir::Operation *op, Args ...args) {
 
 template<class T>
 T getAttr(mlir::Operation *op) {
-  return cast<T>(op->getAttr(T::getMnemonic()));
+  auto attr = op->getAttr(T::getMnemonic());
+  if (!attr)
+    return T();
+
+  if (auto result = dyn_cast<T>(attr))
+    return result;
+  
+  return T();
 }
   
 } // namespace mlir

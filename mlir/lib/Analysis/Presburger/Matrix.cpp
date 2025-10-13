@@ -546,6 +546,125 @@ std::pair<IntMatrix, IntMatrix> IntMatrix::computeHermiteNormalForm() const {
   return {h, u};
 }
 
+std::pair<IntMatrix, IntMatrix> IntMatrix::computeRowHermiteNormalForm() const {
+  IntMatrix transp = transpose();
+  auto [h, u] = transp.computeHermiteNormalForm();
+  return {h.transpose(), u.transpose()};
+}
+
+std::tuple<IntMatrix, IntMatrix, IntMatrix>
+IntMatrix::computeSmithNormalForm() const {
+  IntMatrix d = *this;
+  IntMatrix u = IntMatrix::identity(d.getNumRows());
+  IntMatrix v = IntMatrix::identity(d.getNumColumns());
+
+  unsigned numRows = d.getNumRows();
+  unsigned numCols = d.getNumColumns();
+
+  for (unsigned i = 0; i < numRows && i < numCols; i++) {
+    bool changed;
+    do {
+      changed = false;
+
+      // Find the entry in the submatrix d(i:, i:) with the smallest non-zero
+      // absolute value.
+      // The element is denoted d(p, q), and is the pivot.
+      unsigned p = i, q = i;
+      DynamicAPInt minVal(0);
+      for (unsigned r = i; r < numRows; ++r)
+        for (unsigned c = i; c < numCols; ++c) {
+          DynamicAPInt val = llvm::abs(d(r, c));
+          if (val != 0 && (minVal == 0 || val < minVal)) {
+            minVal = val; 
+            p = r;
+            q = c;
+          }
+        }
+
+      // The remaining submatrix is zero.
+      if (minVal == 0)
+        break;
+
+      // Bring pivot to d(i, i). Record the operation in u, v respectively.
+      if (p != i) {
+        d.swapRows(p, i);
+        u.swapRows(p, i);
+      }
+      if (q != i) {
+        d.swapColumns(q, i);
+        v.swapColumns(q, i);
+      }
+
+      // The pivot should be positive.
+      if (d(i, i) < 0) {
+        d.negateRow(i);
+        u.negateRow(i);
+      }
+
+      DynamicAPInt pivot = d(i, i);
+
+      // Clear other entries in row i and column i with Euclidean algorithm.
+      for (unsigned r = 0; r < numRows; ++r) {
+        if (r == i) continue;
+        while (d(r, i) != 0) {
+          auto quotient = d(r, i) / d(i, i);
+          d.addToRow(i, r, -quotient);
+          u.addToRow(i, r, -quotient);
+
+          if (llvm::abs(d(r, i)) < llvm::abs(d(i, i)) && d(r, i) != 0) {
+            d.swapRows(r, i);
+            u.swapRows(r, i);
+            changed = true;
+          }
+        }
+      }
+      d.dump();
+      // Similar to the rows operations, this time it works on columns.
+      for (unsigned c = 0; c < numCols; ++c) {
+        if (c == i) continue;
+        while (d(i, c) != 0) {
+          DynamicAPInt quotient = d(i, c) / d(i, i);
+          
+          d.addToColumn(i, c, -quotient);
+          v.addToColumn(i, c, -quotient);
+          d.dump();
+
+          if (llvm::abs(d(i, c)) < llvm::abs(d(i, i)) && d(i, c) != 0) {
+            d.swapColumns(c, i);
+            v.swapColumns(c, i);
+            changed = true;
+          }
+          d.dump();
+          assert(d(i, i) != 0);
+        }
+      }
+
+      for (unsigned r = i + 1; r < numRows; ++r) {
+        bool breakFlag = false;
+        for (unsigned c = i + 1; c < numCols; ++c) {
+          if (d(r, c) % pivot != 0) {
+            // Add row r to row i. This brings d(r, c) into the i-th row, 
+            // creating a new value at d(i, c) that will be used to reduce the pivot size.
+            d.addToRow(r, i, 1);
+            u.addToRow(r, i, 1);
+            changed = true;
+            
+            // We must break and restart the inner process to find the new, smaller pivot
+            // in the submatrix d(i:, i:).
+            breakFlag = true;
+            break; 
+          }
+        }
+        if (breakFlag)
+          break;
+      }
+    } while (changed);
+  }
+
+  return {u, d, v};
+}
+
+
 DynamicAPInt IntMatrix::normalizeRow(unsigned row, unsigned cols) {
   return normalizeRange(getRow(row).slice(0, cols));
 }

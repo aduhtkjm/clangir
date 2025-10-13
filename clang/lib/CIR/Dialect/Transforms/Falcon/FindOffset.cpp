@@ -15,8 +15,6 @@ struct FindOffset : public FindOffsetBase<FindOffset> {
   void runOnOperation() override;
   void findBaseInFunction(FuncOp func);
   void findOffsetInFunction(FuncOp func);
-
-  unsigned markBase(PtrStrideOp stride);
 };
 
 void FindOffset::runOnOperation() {
@@ -25,6 +23,27 @@ void FindOffset::runOnOperation() {
     findBaseInFunction(func);
     findOffsetInFunction(func);
   }
+}
+
+unsigned markBase(PtrStrideOp stride) {
+  auto *pointer = stride.getBase().getDefiningOp();
+  if (!pointer)
+    return -1u;
+
+  if (pointer->hasAttr(ArrayBaseAttr::getMnemonic())) {
+    auto id = getAttr<ArrayBaseAttr>(pointer).getId();
+    setAttr<ArrayBaseAttr>(stride, stride->getContext(), id);
+    return id;
+  }
+
+  if (auto baseStride = dyn_cast<PtrStrideOp>(pointer)) {
+    if (auto id = markBase(baseStride); id != -1u) {
+      setAttr<ArrayBaseAttr>(stride, stride->getContext(), id);
+      return id;
+    }
+  }
+
+  return -1u;
 }
 
 void FindOffset::findBaseInFunction(FuncOp func) {
@@ -67,30 +86,108 @@ void FindOffset::findBaseInFunction(FuncOp func) {
   auto strides = findAll<PtrStrideOp>(func);
   for (auto stride : strides)
     markBase(stride);
+
+  // Do similar things to GetElementOp.
+  auto getelem = findAll<GetElementOp>(func);
+  for (auto get : getelem) {
+    mlir::Operation *base = get.getBase().getDefiningOp();
+    if (base && base->hasAttr(ArrayBaseAttr::getMnemonic()))
+      setAttr<ArrayBaseAttr>(get, ctx, getAttr<ArrayBaseAttr>(base).getId());
+  }
 }
 
-unsigned FindOffset::markBase(PtrStrideOp stride) {
-  auto *pointer = stride.getBase().getDefiningOp();
-  if (!pointer)
-    return -1u;
-
-  if (pointer->hasAttr(ArrayBaseAttr::getMnemonic())) {
-    auto id = getAttr<ArrayBaseAttr>(pointer).getId();
-    setAttr<ArrayBaseAttr>(stride, stride->getContext(), id);
-    return id;
+int getNumSurroundingFor(mlir::Operation *op) {
+  int number = 0;
+  for (auto *runner = op; !isa<ModuleOp, FuncOp>(runner); runner = runner->getParentOp()) {
+    if (isa<AffineForOp>(runner))
+      number++;
   }
+  return number;
+}
 
-  if (auto baseStride = dyn_cast<PtrStrideOp>(pointer)) {
-    if (auto id = markBase(baseStride); id != -1u) {
-      setAttr<ArrayBaseAttr>(stride, stride->getContext(), id);
-      return id;
-    }
+// Gives a fixed ID to each induction variable in affine loops.
+llvm::DenseMap<mlir::Operation*, int> getForIds(mlir::Operation *op) {
+  llvm::DenseMap<mlir::Operation*, int> map;
+  int id = 0;
+  for (auto *runner = op; !isa<ModuleOp, FuncOp>(runner); runner = runner->getParentOp()) {
+    if (!isa<AffineForOp>(runner))
+      continue;
+
+    // According to RaiseToFor, the first operation must be `from_index`.
+    auto &first = runner->getRegion(0).front().front();
+    assert(isa<FromIndexOp>(first));
+
+    map[&first] = id++;
   }
+  return map;
+}
 
-  return -1u;
+// Gets the size (in bytes) of the type in C++.
+unsigned getSize(mlir::Type ty) {
+  if (auto intTy = dyn_cast<IntType>(ty))
+    return intTy.getWidth();
+  if (isa<DoubleType>(ty))
+    return 8;
+  if (isa<SingleType>(ty))
+    return 4;
+  if (auto arrTy = dyn_cast<ArrayType>(ty))
+    return arrTy.getSize() * getSize(arrTy.getElementType());
+  
+  ty.dump();
+  llvm_unreachable("unknown type");
 }
 
 void FindOffset::findOffsetInFunction(FuncOp func) {
+  auto accesses = findAll<GetElementOp>(func);
+  auto *ctx = func->getContext();
+  for (auto access : accesses) {
+    int dimCount = getNumSurroundingFor(access);
+    int symCount = 0;
+    auto forId = getForIds(access);
+    
+    // Calculates offset from the base by recursively examining the operands, to
+    // construct an affine expression.
+    std::function<std::optional<AffineExpr>(mlir::Operation*)> calculateOffset =
+    [&](mlir::Operation *op) -> std::optional<AffineExpr> {
+      if (!op)
+        return {};
+
+      if (isa<AllocaOp>(op))
+        return getAffineConstantExpr(0, ctx);
+
+      if (auto cast = dyn_cast<CastOp>(op); cast && cast.getKind() == CastKind::array_to_ptrdecay)
+        return getAffineConstantExpr(0, ctx);
+
+      if (forId.count(op))
+        return getAffineDimExpr(forId[op], ctx);
+
+      if (auto constop = dyn_cast<ConstantOp>(op)) {
+        if (auto intAttr = dyn_cast<IntAttr>(constop.getValue()))
+          return getAffineConstantExpr(intAttr.getSInt(), ctx);
+      }
+
+      if (auto stride = dyn_cast<PtrStrideOp>(op)) {
+        auto base = calculateOffset(stride.getBase().getDefiningOp());
+        auto offset = calculateOffset(stride.getStride().getDefiningOp());
+        unsigned size = getSize(stride.getType().getPointee());
+        if (base && offset)
+          return *base + *offset * size;
+      }
+
+      if (auto getelem = dyn_cast<GetElementOp>(op)) {
+        auto base = calculateOffset(getelem.getBase().getDefiningOp());
+        auto index = calculateOffset(getelem.getIndex().getDefiningOp());
+        if (base && index)
+          return *base + *index;
+      }
+
+      return {};
+    };
+
+    auto offset = calculateOffset(access);
+    if (offset)
+      setAttr<ArrayOffsetAttr>(access, ctx, AffineMap::get(dimCount, symCount, *offset));
+  }
 }
 
 } // namespace

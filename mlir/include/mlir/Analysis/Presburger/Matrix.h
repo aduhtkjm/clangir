@@ -274,6 +274,23 @@ public:
   ///    pivot.
   std::pair<IntMatrix, IntMatrix> computeHermiteNormalForm() const;
 
+  /// Similar to computeColumnHermiteNormalForm. Given the current matrix M, it computes H = U * M,
+  /// such that:
+  ///   - H is upper triangular.
+  ///   - The leading coefficient is positive.
+  ///   - The elements below the pivots are zero, and those above the pivots
+  ///     are nonnegative and strictly smaller than the pivot.
+  std::pair<IntMatrix, IntMatrix> computeRowHermiteNormalForm() const;
+
+  /// Given the current matrix M, returns the matrices U, D, V such that
+  /// UMV = D, where D is called the Smith Normal Form (SNF).
+  /// The matrices have the following properties:
+  ///   - U, V are unimodular. In other words, det(U), det(V) are 1 or -1;
+  ///     their inverse also contain integer entries.
+  ///   - D is diagonal.
+  ///   - For all i, the diagonal element D_{i, i} divides D_{i + 1, i + 1}.
+  std::tuple<IntMatrix, IntMatrix, IntMatrix> computeSmithNormalForm() const;
+
   /// Divide the first `nCols` of the specified row by their GCD.
   /// Returns the GCD of the first `nCols` of the specified row.
   DynamicAPInt normalizeRow(unsigned row, unsigned nCols);

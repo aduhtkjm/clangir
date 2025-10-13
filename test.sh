@@ -1,9 +1,18 @@
 #!/bin/zsh
 
+die() {
+  echo -e "\e[31merror:\e[0m $1"
+}
+
 while [[ $# -gt 0 ]]; do
   case "$1" in
-    -c|--cmake) run_cmake=1; shift;;
+    -c|--cmake)
+      run_cmake=1; shift;;
     -t|--test)
+      if [[ -z $2 ]]; then
+        die "expected test case name after $1"
+        exit 1
+      fi
       testcase=$2; shift 2;;
     -v|--verbose)
       verbose=1; shift;;
@@ -12,9 +21,17 @@ while [[ $# -gt 0 ]]; do
       ln -s /usr/local/bin/clang build/bin/clang
       ln -s /usr/local/bin/clang++ build/bin/clang++
       shift;;
-    *) echo "unknown option: $1"; failed=1; shift;;
+    -d|--display)
+      display=1; shift;;
+    *)
+      die "unknown option: $1"; failed=1; shift;;
   esac
 done
+
+if [[ -n $display && -z $testcase ]]; then
+  die "--display is specified, but no test case is given"
+  failed=1
+fi
 
 # Illegal arguments.
 if [[ -n $failed ]]; then
@@ -47,6 +64,9 @@ if [[ -n $testcase ]]; then
       cat tmp
     fi
     mv tmp $output
+    if [[ -n $display ]]; then
+      code $output
+    fi
     echo "done."
   fi
 fi

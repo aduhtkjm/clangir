@@ -54,6 +54,10 @@ struct Fraction {
   }
 
   llvm::raw_ostream &print(llvm::raw_ostream &os) const {
+    // When the denominator is 1, we omit it for better readability.
+    if (den == 1)
+      return os << num;
+    
     return os << "(" << num << "/" << den << ")";
   }
 

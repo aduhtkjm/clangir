@@ -15,6 +15,168 @@ using namespace mlir;
 using namespace presburger;
 using namespace mlir::presburger::detail;
 
+static llvm::SmallVector<DynamicAPInt> findParticularSolution(const IntMatrix &eqs) {
+  auto [u, d, v] = eqs.computeSmithNormalForm();
+  return {DynamicAPInt(0), DynamicAPInt(0)};
+}
+
+static IntMatrix matmul(const IntMatrix &a, const IntMatrix &b) {
+  assert(a.getNumColumns() == b.getNumRows());
+  unsigned n = a.getNumRows();
+  unsigned m = b.getNumRows();
+  unsigned p = b.getNumColumns();
+  IntMatrix result(n, p);
+
+  for (unsigned i = 0; i < n; i++) {
+    for (unsigned j = 0; j < m; j++) {
+      for (unsigned k = 0; k < p; k++) {
+        result(i, k) += a(i, j) * b(j, k);
+      }
+    }
+  }
+  return result;
+}
+
+PolyhedronH mlir::presburger::detail::eliminateEqualities(const PolyhedronH &poly) {
+  if (poly.getNumEqualities() == 0)
+    return poly;
+
+  // We want to find another polyhedron H, such that it doesn't have equalities
+  // and has the same amount of integer points with P.
+  // Here, P = { x | Ax = B, Dx <= E }.
+  // 
+  // We define A's kernel as { x | Ax = 0 }. It's also called the null space of A.
+  // Suppose v_1, ..., v_n form a basis of the kernel. We denote the matrix
+  // V = [ v_1 | ... | v_n ].
+  // Also suppose x_0 is a solution of Ax = B,
+  // then every solution of the equation can be written as Vy + x_0,
+  // where y is a parameter. Therefore, we have:
+  //
+  //   #P = #{ y | D(Vy + x_0) <= E }
+  //
+  // Here #P means the number of integer points in P.
+  //
+  // If V and x_0 both have integer entries, we can use Barvinok's algorithm
+  // on the right-hand side. Now we calculate them in the following code.
+  //
+  // Note that it is not always possible to find an integer x_0.
+  // When there is no parameters, i.e. p = [], the polyhedron does not contain
+  // any integer points; when there is, however, I still cannot think of
+  // a good way. Therefore, the current implementation will not consider the case of
+  // parameters when doing such conversion.
+
+  // To obtain the matrix A explained in the previous comments, we
+  // strip out the coefficients for variables, removing the parts
+  // for parameters.
+  // As numCols and numRows are different for each matrix, we are not using these names.
+  // The equality matrix is shaped m * (n + 1), where the last element is constant,
+  // and the front n elements are coefficients.
+  unsigned n = poly.getNumRangeVars();
+  IntMatrix eqs = poly.getEqualities();
+  unsigned m = eqs.getNumRows();
+
+  // `eqs` consists of [ A | -B ], as it is stored in "== 0" form.
+  // We split it into two halves, `coeffs` (A) and `constants` (B).
+  llvm::SmallVector<DynamicAPInt> constants;
+  constants.reserve(n);
+  for (unsigned i = 0; i < m; i++)
+    constants.push_back(-eqs(i, n - 1));
+
+  // Note that both ends are inclusive.
+  IntMatrix coeffs = eqs.getSubMatrix(0, m - 1, 0, n - 1);
+
+  // Here hnf is the Hermite Normal Form of A^T. We'll denote it as H.
+  // U is the matrix such that UA^T = H, or the transformation matrix.
+  // By construction, U is unimodular, i.e. both itself and its inverse
+  // have integer entries.
+  // A is shaped m * n, then H is n * m, and U is n * n.
+  IntMatrix transpose = coeffs.transpose();
+  auto [hnf, u] = transpose.computeRowHermiteNormalForm();
+  llvm::errs() << "u:\n";
+  u.dump();
+  llvm::errs() << "hnf:\n";
+  hnf.dump();
+
+  // As UA^T = H, take transposition on both sides, then AU^T = H^T.
+  // Let rank(A) = r, then rank(H) is also r. As H is in row-echelon
+  // form (by definition of HNF), its last n - r rows must be all zero.
+  // Therefore, the last n - r columns of H^T are zero.
+  // Hence, the last n - r columns of U, say u_j ... u_n, satisfy that
+  // Au_j = 0; they're in A's kernel.
+  // 
+  // By unimodularity, det(U) = 1, so U is not singular: rank(U) = n.
+  // Hence its columns u_j ... u_n are linearly independent.
+  // Moreover, as rank(A) = r, we have rank(ker(A)) = n - r, which is
+  // exactly the same amount of these vectors.
+  //
+  // So the vectors are indeed a basis. We've got the integral basis
+  // we want.
+  // They are the last n - r columns of U^T, and it's just the last
+  // n - r rows of U.
+
+  // To obtain rank(H), we simply count non-zero rows.
+  unsigned rank = 0;
+  for (int i = 0, e = hnf.getNumRows(); i < e; i++) {
+    const auto &row = hnf.getRow(i);
+    bool hasNonZero = std::any_of(row.begin(), row.end(), [&](const DynamicAPInt &value) {
+      return value != 0;
+    });
+    if (hasNonZero) {
+      rank++;
+    } else {
+      // HNF is a row-echelon form, so when we find a row with all zeroes,
+      // all rows after that are also zeroes.
+      // Therefore we can break early.
+      break;
+    }
+  }
+  llvm::errs() << "rank: " << rank << "\n";
+  
+  if (rank >= n) {
+    // When the matrix is full-ranked, the kernel is empty.
+    // In this case, Ax = B has a unique solution or none at all.
+    assert(rank == n);
+    llvm_unreachable("NYI");
+  }
+
+  IntMatrix basis = u.getSubMatrix(rank, n - 1, 0, n - 1);
+  llvm::errs() << "basis:\n";
+  basis.dump();
+
+  auto solution = findParticularSolution(eqs);
+  llvm::errs() << "solution:\n";
+  for (const auto &x : solution)
+    llvm::errs() << x;
+  llvm::errs() << "\n";
+  
+  // The inequalities are stored in the form Dx + E >= 0.
+  // So it's changed to D(Vy + x_0) + E >= 0,
+  // i.e. (DV)x + (Dx_0 + E) >= 0.
+  
+  auto ineqs = poly.getInequalities();
+
+  // Strip the constant part.
+  unsigned ineqRows = ineqs.getNumRows();
+  unsigned ineqCols = ineqs.getNumColumns();
+  auto ineqCoeffs = ineqs.getSubMatrix(0, ineqRows - 1, 0, ineqCols - 2);
+  ineqCoeffs = matmul(ineqCoeffs, basis);
+
+  // Add a new column for the constants, and calculate the value.
+  ineqCoeffs.insertColumn(ineqCols - 1);
+  for (unsigned i = 0; i < ineqRows; i++) {
+    DynamicAPInt result = ineqs(i, ineqCols - 1);
+    DynamicAPInt sum = std::inner_product(ineqs.getRow(i).begin(), ineqs.getRow(i).end(), solution.begin(), result);
+    ineqCoeffs(i, ineqCols - 1) = sum;
+  }
+  
+  ineqCoeffs.dump();
+
+  auto resultPoly = PolyhedronH(ineqRows, 0, 0, poly.getSpace());
+  for (unsigned i = 0; i < ineqRows; i++)
+    resultPoly.addInequality(ineqCoeffs.getRow(i));
+  return resultPoly;
+}
+
 /// Assuming that the input cone is pointed at the origin,
 /// converts it to its dual in V-representation.
 /// Essentially we just remove the all-zeroes constant column.
@@ -178,13 +340,13 @@ mlir::presburger::detail::solveParametricEquations(FracMatrix equations) {
   for (unsigned i = 0; i < d; ++i) {
     // First ensure that the diagonal element is nonzero, by swapping
     // it with a row that is non-zero at column i.
-    if (equations(i, i) != 0)
-      continue;
-    for (unsigned j = i + 1; j < d; ++j) {
-      if (equations(j, i) == 0)
-        continue;
-      equations.swapRows(j, i);
-      break;
+    if (equations(i, i) == 0) {
+      for (unsigned j = i + 1; j < d; ++j) {
+        if (equations(j, i) == 0)
+          continue;
+        equations.swapRows(j, i);
+        break;
+      }
     }
 
     Fraction diagElement = equations(i, i);

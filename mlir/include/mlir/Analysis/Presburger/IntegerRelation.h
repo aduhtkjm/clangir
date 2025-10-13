@@ -253,6 +253,8 @@ public:
 
   inline IntMatrix getInequalities() const { return inequalities; }
 
+  inline IntMatrix getEqualities() const { return equalities; }
+
   /// Get the number of vars of the specified kind.
   unsigned getNumVarKind(VarKind kind) const {
     return space.getNumVarKind(kind);
