@@ -618,7 +618,7 @@ IntMatrix::computeSmithNormalForm() const {
           }
         }
       }
-      d.dump();
+      
       // Similar to the rows operations, this time it works on columns.
       for (unsigned c = 0; c < numCols; ++c) {
         if (c == i) continue;
@@ -627,14 +627,12 @@ IntMatrix::computeSmithNormalForm() const {
           
           d.addToColumn(i, c, -quotient);
           v.addToColumn(i, c, -quotient);
-          d.dump();
 
           if (llvm::abs(d(i, c)) < llvm::abs(d(i, i)) && d(i, c) != 0) {
             d.swapColumns(c, i);
             v.swapColumns(c, i);
             changed = true;
           }
-          d.dump();
           assert(d(i, i) != 0);
         }
       }

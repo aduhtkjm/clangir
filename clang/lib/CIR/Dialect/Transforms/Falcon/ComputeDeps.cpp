@@ -221,10 +221,10 @@ void ComputeDeps::runOnOperation() {
 
         // Now, for `sameLoc`, we know the statement instance of `get`.
         getReuseInstances(sameLoc);
-        auto diseq = eliminateEqualities(sameLoc);
-        diseq.dump();
-        /*
-        auto decomp = computePolytopeGeneratingFunction(sameLoc);
+        auto eqRemoval = eliminateEqualities(sameLoc);
+        eqRemoval.dump();
+        
+        auto decomp = computePolytopeGeneratingFunction(eqRemoval);
         for (auto &[set, gf] : decomp) {
           if (set.isIntegerEmpty())
             continue;
@@ -237,7 +237,7 @@ void ComputeDeps::runOnOperation() {
           auto quasi = computeNumTerms(gf).simplify().collectTerms();
           quasi.dump();
           llvm::errs() << "\n";
-        }*/
+        }
       }
       
       // Clear the statements inside this loop. We only deal with ones between
