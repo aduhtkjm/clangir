@@ -639,8 +639,10 @@ static void eliminateFromConstraint(IntegerRelation *constraints,
       continue;
     DynamicAPInt v = pivotMultiplier * constraints->atEq(pivotRow, j) +
                      rowMultiplier * at(rowIdx, j);
-    isEq ? constraints->atEq(rowIdx, j) = v
-         : constraints->atIneq(rowIdx, j) = v;
+    if (isEq)
+      constraints->atEq(rowIdx, j) = v;
+    else
+      constraints->atIneq(rowIdx, j) = v;
   }
 }
 
@@ -1111,6 +1113,15 @@ unsigned IntegerRelation::gaussianEliminateVars(unsigned posStart,
   return posLimit - posStart;
 }
 
+static std::optional<unsigned> findEqualityWithNonZeroAfterRow(IntegerRelation &rel, unsigned fromRow, unsigned colIdx) {
+  assert(fromRow < rel.getNumVars() && colIdx < rel.getNumCols() && "position out of bounds");
+  for (unsigned rowIdx = fromRow; rowIdx < rel.getNumEqualities(); ++rowIdx) {
+    if (rel.atEq(rowIdx, colIdx) != 0)
+      return rowIdx;
+  }
+  return std::nullopt;
+}
+
 bool IntegerRelation::gaussianEliminate() {
   gcdTightenInequalities();
   unsigned firstVar = 0, vars = getNumVars();
@@ -1119,7 +1130,7 @@ bool IntegerRelation::gaussianEliminate() {
   for (nowDone = 0, eqs = getNumEqualities(); nowDone < eqs; ++nowDone) {
     // Finds the first non-empty column.
     for (; firstVar < vars; ++firstVar) {
-      if ((pivotRow = findConstraintWithNonZeroAt(firstVar, /*isEq=*/true)))
+      if ((pivotRow = findEqualityWithNonZeroAfterRow(*this, nowDone, firstVar)))
         break;
     }
     // The matrix has been normalized to row echelon form.
@@ -1142,6 +1153,10 @@ bool IntegerRelation::gaussianEliminate() {
       inequalities.normalizeRow(i);
     }
     gcdTightenInequalities();
+
+    // The column is finished. Tell the next iteration to start at the next
+    // column.
+    ++firstVar;
   }
 
   // No redundant rows.
