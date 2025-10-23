@@ -7,6 +7,7 @@
 //===----------------------------------------------------------------------===//
 
 #include "mlir/Analysis/Presburger/Barvinok.h"
+#include "mlir/Analysis/Presburger/Simplex.h"
 #include "mlir/Analysis/Presburger/Utils.h"
 #include "llvm/ADT/Sequence.h"
 #include <algorithm>
@@ -184,7 +185,11 @@ PolyhedronH mlir::presburger::detail::eliminateEqualities(const PolyhedronH &pol
     // When the matrix is full-ranked, the kernel is empty.
     // In this case, Ax = B has a unique solution or none at all.
     assert(rank == n);
-    llvm_unreachable("NYI");
+    if (poly.findIntegerSample())
+      // Returns a singleton set.
+      return PolyhedronH::getUniverse(PresburgerSpace::getSetSpace());
+
+    return PolyhedronH::getEmpty(poly.getSpace());
   }
 
   // We transpose because we want the column vectors to form the basis,
@@ -224,6 +229,41 @@ PolyhedronH mlir::presburger::detail::eliminateEqualities(const PolyhedronH &pol
   for (unsigned i = 0; i < ineqRows; i++)
     resultPoly.addInequality(ineqCoeffs.getRow(i));
   return resultPoly;
+}
+
+static IntMatrix getAffineHull(const PolyhedronH &poly) {
+  IntMatrix mat(0, poly.getNumCols());
+  Simplex simplex(poly);
+  for (unsigned i = 0, e = poly.getNumInequalities(); i < e; i++) {
+    const auto &eq = poly.getInequality(i);
+    DynamicAPInt constant = eq.back();
+    auto maybeMinimum = simplex.computeOptimum(Simplex::Direction::Down, poly.getInequality(i));
+    auto maybeMaximum = simplex.computeOptimum(Simplex::Direction::Up, poly.getInequality(i));
+    if (!maybeMinimum.isBounded() || !maybeMaximum.isBounded())
+      continue;
+    Fraction minimum = maybeMaximum.getBoundedOptimum();
+    Fraction maximum = maybeMaximum.getBoundedOptimum();
+    if (minimum == maximum && minimum == 0) {
+      mat.insertRow(mat.getNumRows());
+      auto row = mat.getRow(mat.getNumRows() - 1);
+      std::copy(eq.begin(), eq.end(), row.begin());
+    }
+  }
+  return mat;
+}
+
+PolyhedronH mlir::presburger::detail::projectToFullDimension(PolyhedronH poly) {
+  auto affineHull = getAffineHull(poly);
+  if (affineHull.getNumRows() == 0)
+    return llvm::errs() << "empty\n", poly;
+
+  affineHull.dump();
+  for (unsigned i = 0, e = affineHull.getNumRows(); i < e; i++)
+    poly.addEquality(affineHull.getRow(i));
+
+  poly.simplify();
+  poly.dump();
+  return eliminateEqualities(poly);
 }
 
 /// Assuming that the input cone is pointed at the origin,
@@ -996,4 +1036,136 @@ mlir::presburger::detail::computeNumTerms(const GeneratingFunction &gf) {
   }
 
   return totalTerm.simplify();
+}
+
+namespace {
+
+struct Region {
+  // The region is formed by intersection of disjunctions[indices].
+  SmallVector<unsigned> indices;
+
+  // The actual region in parameter space.
+  PresburgerRelation region;
+
+  // The number of integers in the region.
+  QuasiPolynomial count;
+
+  void print(llvm::raw_ostream &os) const;
+  void dump() const;
+};
+
+void Region::dump() const {
+  print(llvm::errs());
+}
+
+void Region::print(llvm::raw_ostream &os) const {
+  os << "Indices:\n";
+  llvm::interleaveComma(indices, os);
+  os << "\nRegion:\n";
+  region.dump();
+  os << "\nQuasiPolynomial:\n";
+  count.dump();
+}
+
+/// We take disjunctions of `rel` whose indices are in `active`, intersect them, and put the result into `outRecords`.
+void obtainRegions(const PresburgerRelation &rel, const PolyhedronH &current, SmallVector<unsigned> &active, unsigned next, std::vector<Region> &outRecords) {
+  if (next == rel.getNumDisjuncts()) {
+    current.dump();
+    if (active.empty() || current.isIntegerEmpty())
+      return;
+    
+    // Compute generating functions on active regions.
+    auto projected = projectToFullDimension(current);
+    llvm::errs() << "projected:\n";
+    projected.dump();
+    // TODO: how to deal with singleton sets?
+    if (projected.getNumVars() == 0) {
+      outRecords.push_back({ active, PresburgerSet(PresburgerRelation::getUniverse(PresburgerSpace::getSetSpace())), QuasiPolynomial(0, {1}, {{}}) });
+      return;
+    }
+    auto gfs = computePolytopeGeneratingFunction(projected);
+    for (const auto &[region, gf] : gfs) {
+      if (region.isIntegerEmpty())
+        continue;
+      
+      gf.dump();
+      llvm::errs() << "\n";
+      QuasiPolynomial q = computeNumTerms(gf);
+      q = q.collectTerms().simplify();
+      outRecords.push_back({ active, region, q });
+    }
+    return;
+  }
+
+  // Case 1. disjunct[next] is excluded.
+  obtainRegions(rel, current, active, next + 1, outRecords);
+
+  // Case 2. disjunct[next] is included.
+  PolyhedronH nextIntersection = current.intersect(rel.getDisjunct(next));
+  if (!nextIntersection.isIntegerEmpty()) {
+    active.push_back(next);
+    obtainRegions(rel, nextIntersection, active, next + 1, outRecords);
+    active.pop_back();
+  }
+}
+
+} // namespace
+
+std::vector<std::pair<PresburgerRelation, QuasiPolynomial>>
+mlir::presburger::detail::countIntegerPoints(PresburgerRelation &rel) {
+  std::vector<Region> records;
+  SmallVector<unsigned> active;
+  auto universe = IntegerRelation::getUniverse(rel.getSpace());
+  obtainRegions(rel, universe, active, 0, records);
+  for (const auto &record : records) {
+    record.dump();
+    llvm::errs() << "\n";
+  }
+
+  unsigned numParams = rel.getNumSymbolVars();
+  auto paramSpace = PresburgerSpace::getSetSpace(numParams);
+  auto paramUniverse = PresburgerRelation::getUniverse(paramSpace);
+  std::vector<PresburgerRelation> refinement { paramUniverse };
+
+  // For each record region, split current refinement.
+  for (const Region &rec : records) {
+    std::vector<PresburgerRelation> nextRef;
+    for (PresburgerRelation &set : refinement) {
+      // Divide each set into two parts: 
+      // A = S ∩ rec.region
+      PresburgerRelation a = set.intersect(rec.region);
+      if (!a.isIntegerEmpty())
+        nextRef.push_back(a);
+      
+      // B = S \ rec.region
+      PresburgerRelation b = set.subtract(rec.region);
+      if (!b.isIntegerEmpty())
+        nextRef.push_back(b);
+    }
+    refinement.swap(nextRef);
+  }
+
+  // Now refinement is a list of pairwise-disjoint (up to lower-dim) chambers.
+  // For each refinement chamber, collect contributions and sum quasi-polynomials.
+  std::vector<std::pair<PresburgerRelation, QuasiPolynomial>> result;
+  for (PresburgerRelation &chamber : refinement) {
+    // Build the inclusion-exclusion sum.
+     
+    // A zero polynomial.
+    QuasiPolynomial q(numParams, {}, {});
+    for (const Region &rec : records) {
+      // The chamber is either fully inside `rec.region`, or fully disjoint with it.
+      PresburgerRelation intersect = chamber.intersect(rec.region);
+      if (intersect.isIntegerEmpty())
+        continue;
+      // rec.count contributes to the chamber.
+      // According to inclusion-exclusion principle, the coefficient is
+      // (-1)^{|I|+1}, where I is the number of insections.
+      int parity = (rec.indices.size() % 2 == 1) ? 1 : -1;
+      q = q + rec.count * parity;
+    }
+    result.emplace_back(chamber, q.collectTerms());
+  }
+
+  return result;
 }

@@ -106,9 +106,11 @@ int getNumSurroundingFor(mlir::Operation *op) {
 }
 
 // Gives a fixed ID to each induction variable in affine loops.
+// The outermost loop is given ID 0, and the loop directly nested
+// in it is given ID 1, and so on.
 llvm::DenseMap<mlir::Operation*, int> getForIds(mlir::Operation *op) {
   llvm::DenseMap<mlir::Operation*, int> map;
-  int id = 0;
+  llvm::SmallVector<mlir::Operation*> operations;
   for (auto *runner = op; !isa<ModuleOp, FuncOp>(runner); runner = runner->getParentOp()) {
     if (!isa<AffineForOp>(runner))
       continue;
@@ -117,7 +119,13 @@ llvm::DenseMap<mlir::Operation*, int> getForIds(mlir::Operation *op) {
     auto &first = runner->getRegion(0).front().front();
     assert(isa<FromIndexOp>(first));
 
-    map[&first] = id++;
+    operations.push_back(&first);
+  }
+
+  // We enumerate from the innermost to outermost.
+  // Therefore when we assign IDs, we must reverse the operations first.
+  for (auto [id, op] : llvm::enumerate(llvm::reverse(operations))) {
+    map[op] = id;
   }
   return map;
 }

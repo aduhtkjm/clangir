@@ -1,5 +1,6 @@
 #include "PassDetail.h"
 #include "FalconUtilities.h"
+#include "mlir/Analysis/Presburger/Barvinok.h"
 #include "mlir/Analysis/Presburger/IntegerRelation.h"
 #include "mlir/Analysis/Presburger/Simplex.h"
 #include "clang/CIR/Dialect/IR/CIRDialect.h"
@@ -9,6 +10,7 @@ using namespace mlir;
 using namespace cir;
 using namespace affine;
 using namespace mlir::presburger;
+using namespace mlir::presburger::detail;
 
 namespace {
 
@@ -144,6 +146,8 @@ std::optional<SmallVector<LoopBound>> getLoopBounds(Operation *op) {
     }
   }
 
+  // Make sure that the outermost loop comes first.
+  std::reverse(bounds.begin(), bounds.end());
   return bounds;
 }
 
@@ -210,6 +214,28 @@ void ComputeDeps::runOnOperation() {
     auto sinkBounds = getLoopBounds(sink);
     if (!sinkBounds)
       continue;
+
+    auto sinkDomainSpace = PresburgerSpace::getSetSpace(srcDims);
+    IntegerRelation sinkDomain(sinkDomainSpace);
+    
+    for (auto [i, bound] : enumerate(*sinkBounds)) {
+      auto [low, high] = bound;
+      // The extra `dims(depMap)` elements will be automatically zeroed.
+      auto coeffLow = extractCoefficients(low.getMap().getResult(0), low.getOperands(), srcDims);
+      auto coeffHigh = extractCoefficients(high.getMap().getResult(0), high.getOperands(), srcDims);
+      
+      // v_s[i] < high;
+      // That is, -v_s[i] + high - 1 >= 0. 
+      coeffHigh[i] -= 1;
+      coeffHigh.back() -= 1;
+      sinkDomain.addInequality(coeffHigh);
+
+      // v_s[i] - low >= 0.
+      for (auto &c : coeffLow)
+        c *= -1;
+      coeffLow[i] += 1;
+      sinkDomain.addInequality(coeffLow);
+    }
 
     // For every statement that sink depends on, record the `depend` relation,
     // defined below.
@@ -311,7 +337,7 @@ void ComputeDeps::runOnOperation() {
       }
 
       // `dep` must be lexicographically before `sink`.
-      PresburgerRelation rel(depend);
+      PresburgerRelation rel = PresburgerRelation::getEmpty(depend.getSpace());
       unsigned depth = findCommonLoopDepth(sink, dep);
       for (unsigned i = 0; i < std::max(depDims, srcDims); i++) {
         auto copy = depend;
@@ -441,10 +467,10 @@ void ComputeDeps::runOnOperation() {
             for (unsigned j = srcDims; j < row.size() - 1; j++) {
               Operation *affineLoop = loopParent[j - srcDims];
               auto index = indexMap[affineLoop];
-              // Store a (index, value) pair as described above.
+              // Position `index` represents the value.
               newRow[index] = row[j];
 
-              // The indices should be viewed as equalities.
+              // The loopVarIndex is at position `index - 1`.
               SmallVector<DynamicAPInt> equality(commonDims + 1);
               equality[index - 1] = 1;
               equality.back() = -loopVarIndex[affineLoop].back();
@@ -468,9 +494,24 @@ void ComputeDeps::runOnOperation() {
       }
     }
 
-    depsTotal.dump();
     SymbolicLexOpt lexmax = depsTotal.findSymbolicIntegerLexMax();
-    lexmax.lexopt.dump();
+    // TODO: make this the space of v_s.
+    assert(lexmax.lexopt.getDomainSpace().isCompatible(sinkDomainSpace));
+    PresburgerRelation untouched(sinkDomain);
+
+    for (const auto &piece : lexmax.lexopt.getAllPieces())
+      untouched = untouched.subtract(piece.domain);
+    untouched.simplify();
+    
+    // The number of compulsory misses is equal to the number of integer points in `untouched`.
+    // We're going to count it.
+    auto v = countIntegerPoints(untouched);
+    for (const auto &[chamber, result] : v) {
+      llvm::errs() << "chamber:\n";
+      chamber.dump();
+      llvm::errs() << "result:\n";
+      result.dump();
+    }
   }
 }
 

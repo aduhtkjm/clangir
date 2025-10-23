@@ -66,10 +66,16 @@ inline PolyhedronH defineHRep(int numVars, int numSymbols = 0) {
                                                   /*numLocals=*/0));
 }
 
-/// Barvinok's algorithm only deals with inequalities. We have to find a 
-/// bijection between integers in the input polyhedron and those in a
-/// polyhedron without equalities.
+/// For a polyhedron { x | Ax = B, Cx = D }, this function finds another 
+/// polyhedron { x | C'x = D' } with the same amount of integer points.
+/// Note that this can't deal with parameters currently.
 PolyhedronH eliminateEqualities(const PolyhedronH &poly);
+
+/// The `computePolytopeGeneratingFunction` function only works when its
+/// input is full-dimensional. Therefore, for a non-full-dimensional
+/// polyhedron, we must first project it to a lower-dimensional space such
+/// that the projection has the same amount of integer points.
+PolyhedronH projectToFullDimension(PolyhedronH poly);
 
 /// Get the index of a cone, i.e., the volume of the parallelepiped
 /// spanned by its generators, which is equal to the number of integer
@@ -146,6 +152,15 @@ QuasiPolynomial getCoefficientInRationalFunction(unsigned power,
 /// The generating function must be such that for all values of the
 /// parameters, the number of terms is finite.
 QuasiPolynomial computeNumTerms(const GeneratingFunction &gf);
+
+/// Counts the integer points in a presburger set, which is disjunction
+/// of polyhedrons.
+///
+/// This function partitions the parameter space into pairwise disjoint
+/// chambers, and gives the quasi-polynomial that represents the integer
+/// count of the polyhedron when parameters are in the chamber.
+std::vector<std::pair<PresburgerRelation, QuasiPolynomial>>
+countIntegerPoints(PresburgerRelation &rel);
 
 } // namespace detail
 } // namespace presburger

@@ -36,7 +36,7 @@ namespace presburger {
 // g_{ij} : Q^n -> Q are affine functionals.
 class QuasiPolynomial : public PresburgerSpace {
 public:
-  QuasiPolynomial(unsigned numVars, ArrayRef<Fraction> coeffs = {},
+  explicit QuasiPolynomial(unsigned numVars, ArrayRef<Fraction> coeffs = {},
                   ArrayRef<std::vector<SmallVector<Fraction>>> aff = {});
 
   QuasiPolynomial(unsigned numVars, const Fraction &constant);
@@ -57,6 +57,7 @@ public:
   QuasiPolynomial operator+(const QuasiPolynomial &x) const;
   QuasiPolynomial operator-(const QuasiPolynomial &x) const;
   QuasiPolynomial operator*(const QuasiPolynomial &x) const;
+  QuasiPolynomial operator*(const Fraction &x) const;
   QuasiPolynomial operator/(const Fraction &x) const;
 
   // Removes terms which evaluate to zero from the expression
@@ -69,8 +70,8 @@ public:
 
   Fraction getConstantTerm();
 
-  void print(llvm::raw_ostream &os);
-  void dump() { print(llvm::errs()); }
+  void print(llvm::raw_ostream &os) const;
+  void dump() const { print(llvm::errs()); }
 
 private:
   SmallVector<Fraction> coefficients;

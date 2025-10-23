@@ -223,6 +223,11 @@ public:
   void print(raw_ostream &os) const;
   void dump() const;
 
+  /// Simplifies the function by:
+  ///   - Remove pieces whose domain is empty;
+  ///   - Simplify the domain of each piece.
+  void simplify();
+
 private:
   /// Return a function defined on the union of the domains of `this` and
   /// `func`, such that when only one of the functions is defined, it outputs

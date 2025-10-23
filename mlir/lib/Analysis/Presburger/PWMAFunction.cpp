@@ -473,3 +473,14 @@ PWMAFunction::valueAt(ArrayRef<DynamicAPInt> point) const {
       return piece.output.valueAt(point);
   return std::nullopt;
 }
+
+void PWMAFunction::simplify() {
+  SmallVector<Piece, 4> newPieces;
+  for (Piece piece : pieces) {
+    if (piece.domain.isIntegerEmpty())
+      continue;
+    piece.domain = PresburgerSet(piece.domain.simplify());
+    newPieces.push_back(piece);
+  }
+  pieces = newPieces;
+}

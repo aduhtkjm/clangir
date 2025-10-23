@@ -96,6 +96,13 @@ QuasiPolynomial QuasiPolynomial::operator/(const Fraction &x) const {
   return qp;
 }
 
+QuasiPolynomial QuasiPolynomial::operator*(const Fraction &x) const {
+  QuasiPolynomial qp(*this);
+  for (Fraction &coeff : qp.coefficients)
+    coeff *= x;
+  return qp;
+}
+
 // Removes terms which evaluate to zero from the expression and
 // integrate affine functions which are constants into the
 // coefficients.
@@ -172,7 +179,7 @@ Fraction QuasiPolynomial::getConstantTerm() {
   return constTerm;
 }
 
-void QuasiPolynomial::print(llvm::raw_ostream &os) {
+void QuasiPolynomial::print(llvm::raw_ostream &os) const {
   for (unsigned i = 0, e = affine.size(); i < e; i++) {
     if (i != 0)
       os << " + ";
