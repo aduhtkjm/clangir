@@ -1040,7 +1040,7 @@ PresburgerRelation PresburgerRelation::simplify() const {
     if (!disjunct.isObviouslyEmpty())
       result.unionInPlace(disjunct);
   }
-  return result;
+  return result.coalesce();
 }
 
 bool PresburgerRelation::isFullDim() const {

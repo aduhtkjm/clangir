@@ -124,7 +124,8 @@ PolyhedronH mlir::presburger::detail::eliminateEqualities(const PolyhedronH &pol
   // As numCols and numRows are different for each matrix, we are not using these names.
   // The equality matrix is shaped m * (n + 1), where the last element is constant,
   // and the front n elements are coefficients.
-  unsigned n = poly.getNumRangeVars();
+  assert(poly.getNumSymbolVars() == 0); // TODO: What about local vars?
+  unsigned n = poly.getNumVars();
   IntMatrix eqs = poly.getEqualities();
   assert(eqs.getNumColumns() == n + 1);
   unsigned m = eqs.getNumRows();
@@ -254,15 +255,13 @@ static IntMatrix getAffineHull(const PolyhedronH &poly) {
 
 PolyhedronH mlir::presburger::detail::projectToFullDimension(PolyhedronH poly) {
   auto affineHull = getAffineHull(poly);
-  if (affineHull.getNumRows() == 0)
-    return llvm::errs() << "empty\n", poly;
+  if (affineHull.getNumRows() == 0 && poly.getNumEqualities() == 0)
+    return poly;
 
-  affineHull.dump();
   for (unsigned i = 0, e = affineHull.getNumRows(); i < e; i++)
     poly.addEquality(affineHull.getRow(i));
 
   poly.simplify();
-  poly.dump();
   return eliminateEqualities(poly);
 }
 
@@ -1062,22 +1061,19 @@ void Region::print(llvm::raw_ostream &os) const {
   os << "Indices:\n";
   llvm::interleaveComma(indices, os);
   os << "\nRegion:\n";
-  region.dump();
+  region.print(os);
   os << "\nQuasiPolynomial:\n";
-  count.dump();
+  count.print(os);
 }
 
 /// We take disjunctions of `rel` whose indices are in `active`, intersect them, and put the result into `outRecords`.
 void obtainRegions(const PresburgerRelation &rel, const PolyhedronH &current, SmallVector<unsigned> &active, unsigned next, std::vector<Region> &outRecords) {
   if (next == rel.getNumDisjuncts()) {
-    current.dump();
     if (active.empty() || current.isIntegerEmpty())
       return;
     
     // Compute generating functions on active regions.
     auto projected = projectToFullDimension(current);
-    llvm::errs() << "projected:\n";
-    projected.dump();
     // TODO: how to deal with singleton sets?
     if (projected.getNumVars() == 0) {
       outRecords.push_back({ active, PresburgerSet(PresburgerRelation::getUniverse(PresburgerSpace::getSetSpace())), QuasiPolynomial(0, {1}, {{}}) });
@@ -1088,8 +1084,6 @@ void obtainRegions(const PresburgerRelation &rel, const PolyhedronH &current, Sm
       if (region.isIntegerEmpty())
         continue;
       
-      gf.dump();
-      llvm::errs() << "\n";
       QuasiPolynomial q = computeNumTerms(gf);
       q = q.collectTerms().simplify();
       outRecords.push_back({ active, region, q });
@@ -1117,10 +1111,6 @@ mlir::presburger::detail::countIntegerPoints(PresburgerRelation &rel) {
   SmallVector<unsigned> active;
   auto universe = IntegerRelation::getUniverse(rel.getSpace());
   obtainRegions(rel, universe, active, 0, records);
-  for (const auto &record : records) {
-    record.dump();
-    llvm::errs() << "\n";
-  }
 
   unsigned numParams = rel.getNumSymbolVars();
   auto paramSpace = PresburgerSpace::getSetSpace(numParams);
