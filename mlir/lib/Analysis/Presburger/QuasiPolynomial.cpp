@@ -180,6 +180,11 @@ Fraction QuasiPolynomial::getConstantTerm() {
 }
 
 void QuasiPolynomial::print(llvm::raw_ostream &os) const {
+  if (affine.empty()) {
+    os << "<empty>";
+    return;
+  }
+  
   for (unsigned i = 0, e = affine.size(); i < e; i++) {
     if (i != 0)
       os << " + ";

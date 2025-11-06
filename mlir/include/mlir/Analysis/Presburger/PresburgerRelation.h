@@ -215,7 +215,9 @@ public:
 
   /// Simplify each disjunct, canonicalizing each disjunct and removing
   /// redundencies.
-  PresburgerRelation simplify() const;
+  /// The function doesn't modify `this` in place, as opposed to IntegerRelation::
+  /// simplify().
+  [[nodiscard]] PresburgerRelation simplify() const;
 
   /// Return whether the given PresburgerRelation is full-dimensional. By full-
   /// dimensional we mean that it is not flat along any dimension.

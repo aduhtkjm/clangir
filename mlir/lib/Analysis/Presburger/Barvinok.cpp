@@ -18,60 +18,6 @@ using namespace mlir::presburger::detail;
 
 using IntVector = llvm::SmallVector<llvm::DynamicAPInt>;
 
-static std::optional<IntVector> findParticularSolution(const IntMatrix &eqs, const IntVector &constants) {
-  auto [u, d, v] = eqs.computeSmithNormalForm();
-  
-  // We are solving Ax = b. Now we've obtained UAV = D, where D is the Smith Normal Form.
-  // Hence Ax = (U^{-1} D V^{-1}) x = b, which means D(V^{-1}x) = Ub.
-  // We denote y = V^{-1}x, and we solve for y first.
-  //
-  // As D is diagonal, i.e. D = diag(s_1, ..., s_n, 0, ..., 0),
-  // it is obvious that the equation is reduced to the following equalities:
-  //   -  s_1 y_1 = (Ub)_1
-  //   -  s_2 y_2 = (Ub)_2
-  //   -  ...
-  //
-  // So y_n = (Ub)_n / s_n for every s_n != 0. For those s_n = 0, we can simply set y_n = 0,
-  // as we are only finding *a* solution rather than all solutions.
-
-  unsigned numRows = eqs.getNumRows();
-  assert(numRows == constants.size());
-  unsigned numCols = eqs.getNumColumns();
-
-  IntVector rhs; // Stores the entries of Ub.
-  rhs.reserve(numRows);
-  for (unsigned i = 0; i < numRows; i++)
-    rhs.push_back(std::inner_product(u.getRow(i).begin(), u.getRow(i).end(), constants.begin(), DynamicAPInt(0)));
-  
-
-  IntVector y;
-  y.resize(numCols); // Automatically fill zeroes unless adjusted below.
-  for (unsigned i = 0; i < numRows; i++) {
-    // This corresponds to an equation 0 y_i = (Ub)_i != 0, which is impossible.
-    if (rhs[i] != 0 && d(i, i) == 0)
-      return std::nullopt;
-
-    // When s_i does not divide (Ub)_i, y_i is fractional.
-    // However, as x and V^{-1} only have integers (the latter is by unimodularity),
-    // y = V^{-1}x should only contain integers.
-    // This means no integer solution exists for x, hence nullopt.
-    if (d(i, i) != 0 && rhs[i] % d(i, i) != 0)
-      return std::nullopt;
-
-    // A constraint s_i y_i = (Ub)_i is found and must be enforced.
-    if (d(i, i) != 0)
-      y[i] = rhs[i] / d(i, i);
-  }
-
-  IntVector solution;
-  solution.reserve(numCols);
-  // Now compute x = Vy.
-  for (unsigned i = 0; i < numCols; i++)
-    solution.push_back(std::inner_product(v.getRow(i).begin(), v.getRow(i).end(), y.begin(), DynamicAPInt(0)));
-  
-  return solution;
-}
-
 // Matrix multiplication.
 static IntMatrix matmul(const IntMatrix &a, const IntMatrix &b) {
   assert(a.getNumColumns() == b.getNumRows());
@@ -90,22 +36,79 @@ static IntMatrix matmul(const IntMatrix &a, const IntMatrix &b) {
   return result;
 }
 
+static std::optional<IntMatrix> findParticularSolution(const IntMatrix &eqs, const IntMatrix &constants) {
+  auto [u, d, v] = eqs.computeSmithNormalForm();
+  
+  // We are solving Ax = Bp + C. Now we've obtained UAV = D, where D is the Smith Normal Form.
+  // Hence Ax = (U^{-1} D V^{-1}) x = Bp + C, which means D(V^{-1}x) = U(Bp + C).
+  // We denote y = V^{-1}x, and we solve for y first.
+  //
+  // As D is diagonal, i.e. D = diag(s_1, ..., s_n, 0, ..., 0),
+  // it is obvious that the equation is reduced to the following equalities:
+  //   -  s_1 y_1 = (UBp + UC)_1
+  //   -  s_2 y_2 = (UBp + UC)_2
+  //   -  ...
+  //
+  // So y_n = (UBp + UC)_n / s_n for every s_n != 0. For those s_n = 0, we can simply set y_n = 0,
+  // as we are only finding *a* solution rather than all solutions.
+  // Note that it is not guaranteed that the values will always be divisible. If it is not,
+  // then the parameters are constrained into a sublattice. This case is not handled currently.
+
+  unsigned numRows = eqs.getNumRows();
+  unsigned numCols = eqs.getNumColumns();
+  assert(numRows == constants.getNumRows());
+  unsigned numRhsCols = constants.getNumColumns();
+
+  // Bp + C is stored as [B | C]. Hence to calculate UBp + UC, simply do a matmul.
+  IntMatrix rhs = matmul(u, constants);
+
+  // The result, in a form [y_B | y_C] that represents y_B p + y_C.
+  IntMatrix y(numCols, numRhsCols);
+  for (unsigned i = 0; i < numRows; i++) {
+    // (UBp + UC)_i is essentially (UB)[i, :] \cdot p + (UC)_i.
+    // If any of the entries aren't zero when s_i is zero, the polyhedron is empty.
+    MutableArrayRef row = rhs.getRow(i);
+    if (std::any_of(row.begin(), row.end(), [](const DynamicAPInt &x) { return x != 0; }) && d(i, i) == 0)
+      return std::nullopt;
+
+    // When s_i does not divide (UB)[i, j] or (UC)_i, y_i is fractional.
+    // However, as x and V^{-1} only have integers (the latter is by unimodularity),
+    // y = V^{-1}x should only contain integers if we want the polyhedron to be non-empty.
+    // for all values of p.
+    // (TODO: We could also return a constraint of p, but this is not implemented.)
+    auto s = d(i, i);
+    if (s != 0 && std::any_of(row.begin(), row.end(), [&](const DynamicAPInt &x) { return x % s != 0; }))
+      return std::nullopt;
+
+    // A constraint s_i y_i = (UB)[i, :] p + (UC)_i is found and must be enforced.
+    if (s != 0) {
+      for (unsigned j = 0; j < numRhsCols; j++)
+        y(i, j) = rhs(i, j) / s;
+    }
+  }
+
+  return matmul(v, y);
+}
+
 PolyhedronH mlir::presburger::detail::eliminateEqualities(const PolyhedronH &poly) {
   if (poly.getNumEqualities() == 0)
     return poly;
+  // Divlocals are unique and hence doesn't need special treatment.
+  // They can be just viewed as normal variables.
+  assert(poly.hasOnlyDivLocals());
 
   // We want to find another polyhedron H, such that it doesn't have equalities
   // and has the same amount of integer points with P.
-  // Here, P = { x | Ax = b, Dx <= e }.
+  // Here, P = { x | Ax = Bp + C, Dx <= Ep + F }, where p is a vector of parameters.
   // 
   // We define A's kernel as { x | Ax = 0 }. It's also called the null space of A.
   // Suppose v_1, ..., v_n form a basis of the kernel. We denote the matrix
   // V = [ v_1 | ... | v_n ].
   // Also suppose x_0 is a solution of Ax = b,
-  // then every solution of the equation can be written as Vy + x_0,
-  // where y is a parameter. Therefore, we have:
+  // then every solution of the equation can be written as Vy(p) + x_0,
+  // where y is a function of parameters p. Therefore, we have:
   //
-  //   #P = #{ y | D(Vy + x_0) <= e }
+  //   #P = #{ y | D(Vy + x_0(p)) <= Ep + F }
   //
   // Here #P means the number of integer points in P.
   //
@@ -122,23 +125,35 @@ PolyhedronH mlir::presburger::detail::eliminateEqualities(const PolyhedronH &pol
   // strip out the coefficients for variables, removing the parts
   // for parameters.
   // As numCols and numRows are different for each matrix, we are not using these names.
-  // The equality matrix is shaped m * (n + 1), where the last element is constant,
-  // and the front n elements are coefficients.
-  assert(poly.getNumSymbolVars() == 0); // TODO: What about local vars?
-  unsigned n = poly.getNumVars();
+  // The equality matrix is shaped m * (n + p + 1), where the last element is constant,
+  // and the front n elements are coefficients of the domain, range and local variables.
+
+  unsigned locals = poly.getNumLocalVars();
+  unsigned dims = poly.getNumDimVars();
+  unsigned n = dims + locals;
+  unsigned p = poly.getNumSymbolVars();
   IntMatrix eqs = poly.getEqualities();
-  assert(eqs.getNumColumns() == n + 1);
   unsigned m = eqs.getNumRows();
+  
+  // Reorder the rows of `eqs`, so that its symbol variables are at position n.. n + p.
+  eqs.insertColumns(dims, locals);
+  for (unsigned i = dims; i < n; i++) {
+    // Add the original (p + i)'th column, which is the (i - dims)'th local's column,
+    // to the new empty column.
+    // After inserting `locals` columns, they are at position p + i + locals.
+    eqs.addToColumn(/*sourceColumn=*/p + i + locals, /*targetColumn=*/i, 1);
+  }
+  // Remove the locals at the end to finish the reposition.
+  eqs.removeColumns(n + p, locals);
 
   // `eqs` consists of [ A | -B ], as it is stored in "== 0" form.
-  // We split it into two halves, `coeffs` (A) and `constants` (B).
-  IntVector constants;
-  constants.reserve(n);
-  for (unsigned i = 0; i < m; i++)
-    constants.push_back(-eqs(i, n));
-
+  // We split it into two halves, `coeffs` (A) and `parameters + constants` (B).
   // Note that both ends are inclusive.
   IntMatrix coeffs = eqs.getSubMatrix(0, m - 1, 0, n - 1);
+  IntMatrix constants = eqs.getSubMatrix(0, m - 1, n, n + p);
+  // Flip constant sign, as mentioned above.
+  for (unsigned i = 0; i < m; i++)
+    constants.negateRow(i);
 
   // Here hnf is the Hermite Normal Form of A^T. We'll denote it as H.
   // U is the matrix such that UA^T = H, or the transformation matrix.
@@ -197,38 +212,51 @@ PolyhedronH mlir::presburger::detail::eliminateEqualities(const PolyhedronH &pol
   // rather than row vectors.
   IntMatrix basis = u.getSubMatrix(rank, n - 1, 0, n - 1).transpose();
 
-  auto solution = findParticularSolution(coeffs, constants);
+  auto solution = findParticularSolution(coeffs, constants); // n * (p + 1)
   if (!solution)
     return PolyhedronH::getEmpty(poly.getSpace());
   
-  // The inequalities are stored in the form Dx + e >= 0.
-  // So it's changed to D(Vy + x_0) + e >= 0,
-  // i.e. (DV)x + (Dx_0 + e) >= 0.
+  // The inequalities are stored in the form Dx + Ep + F >= 0.
+  // So it's changed to D(Vy + x_0(p, 1)) + [E | F](p, 1) >= 0,
+  // i.e. (DV)y + (Dx_0 + [E | F])(p, 1) >= 0.
   
   auto ineqs = poly.getInequalities();
+  // Similarly, reorder the rows of ineqs as done above to equalities.
+  ineqs.insertColumns(dims, locals);
+  for (unsigned i = dims; i < n; i++)
+    ineqs.addToColumn(/*sourceColumn=*/p + i + locals, /*targetColumn=*/i, 1);
+  ineqs.removeColumns(n + p, locals);
 
-  // Strip the constant part.
+  // Strip the parameter and constant part.
   unsigned ineqRows = ineqs.getNumRows();
-  auto ineqCoeffs = ineqs.getSubMatrix(0, ineqRows - 1, 0, ineqs.getNumColumns() - 2);
-  ineqCoeffs = matmul(ineqCoeffs, basis);
+  unsigned ineqCols = ineqs.getNumColumns();
+  assert(ineqCols == n + p + 1);
+  auto ineqCoeffs = ineqs.getSubMatrix(0, ineqRows - 1, 0, n - 1);
+  IntMatrix rhs = matmul(ineqCoeffs, *solution);
+  IntMatrix newCoeffs = matmul(ineqCoeffs, basis);
 
   // Add a new column for the constants, and calculate the value.
   // Be careful that `ineqCoeffs` has fewer columns after the matmul.
-  ineqCoeffs.insertColumn(ineqCoeffs.getNumColumns());
+  auto before = ineqs.getSubMatrix(0, ineqRows - 1, n, ineqCols - 1);
+  // Pointwise add the entries.
+  assert(rhs.getNumColumns() == before.getNumColumns() && rhs.getNumRows() == before.getNumRows());
+  for (unsigned i = 0; i < rhs.getNumRows(); i++) {
+    for (unsigned j = 0; j < rhs.getNumColumns(); j++)
+      rhs(i, j) += before(i, j);
+  }
+  // Concatenate (horizontally stack) rhs after ineqCoeffs.
+  unsigned newCols = newCoeffs.getNumColumns();
+  newCoeffs.insertColumns(newCols, p + 1);
   for (unsigned i = 0; i < ineqRows; i++) {
-    DynamicAPInt result = ineqs(i, ineqs.getNumColumns() - 1);
-
-    // Note the final element (coefficient) should be ignored.
-    // That is the constant term, and doesn't belong to the matrix D mentioned above.
-    DynamicAPInt sum = std::inner_product(ineqs.getRow(i).begin(), ineqs.getRow(i).end() - 1, solution->begin(), result);
-    ineqCoeffs(i, ineqCoeffs.getNumColumns() - 1) = sum;
+    for (unsigned j = 0; j < p + 1; j++)
+      newCoeffs(i, j + newCols) = rhs(i, j);
   }
 
-  auto numVars = ineqCoeffs.getNumColumns() - 1;
-  auto space = PresburgerSpace::getSetSpace(numVars);
+  auto numVars = newCoeffs.getNumColumns() - 1;
+  auto space = PresburgerSpace::getSetSpace(numVars - p, p);
   auto resultPoly = PolyhedronH(ineqRows, 0, numVars + 1, space);
   for (unsigned i = 0; i < ineqRows; i++)
-    resultPoly.addInequality(ineqCoeffs.getRow(i));
+    resultPoly.addInequality(newCoeffs.getRow(i));
   return resultPoly;
 }
 
@@ -1058,12 +1086,14 @@ void Region::dump() const {
 }
 
 void Region::print(llvm::raw_ostream &os) const {
+  os << "==== Record ====\n";
   os << "Indices:\n";
   llvm::interleaveComma(indices, os);
   os << "\nRegion:\n";
   region.print(os);
   os << "\nQuasiPolynomial:\n";
   count.print(os);
+  os << "\n";
 }
 
 /// We take disjunctions of `rel` whose indices are in `active`, intersect them, and put the result into `outRecords`.
@@ -1076,14 +1106,23 @@ void obtainRegions(const PresburgerRelation &rel, const PolyhedronH &current, Sm
     auto projected = projectToFullDimension(current);
     // TODO: how to deal with singleton sets?
     if (projected.getNumVars() == 0) {
-      outRecords.push_back({ active, PresburgerSet(PresburgerRelation::getUniverse(PresburgerSpace::getSetSpace())), QuasiPolynomial(0, {1}, {{}}) });
+      unsigned syms = rel.getNumSymbolVars();
+      auto space = PresburgerSpace::getSetSpace(syms);
+      auto one = QuasiPolynomial(syms, 1);
+      outRecords.push_back({ active, PresburgerSet(PresburgerRelation::getUniverse(space)), one });
       return;
     }
+    if (projected.isIntegerEmpty())
+      return;
     auto gfs = computePolytopeGeneratingFunction(projected);
     for (const auto &[region, gf] : gfs) {
       if (region.isIntegerEmpty())
         continue;
       
+      if (gf.getSigns().size() == 0) {
+        llvm::errs() << "warning: region non-empty, but gf empty\n";
+        continue;
+      }
       QuasiPolynomial q = computeNumTerms(gf);
       q = q.collectTerms().simplify();
       outRecords.push_back({ active, region, q });
@@ -1142,7 +1181,7 @@ mlir::presburger::detail::countIntegerPoints(PresburgerRelation &rel) {
     // Build the inclusion-exclusion sum.
      
     // A zero polynomial.
-    QuasiPolynomial q(numParams, {}, {});
+    QuasiPolynomial q(numParams, 0);
     for (const Region &rec : records) {
       // The chamber is either fully inside `rec.region`, or fully disjoint with it.
       PresburgerRelation intersect = chamber.intersect(rec.region);

@@ -208,18 +208,49 @@ void addBounds(IntegerRelation &rel, ArrayRef<LoopBound> loopBound, unsigned dim
   }
 }
 
-// Add an inequality to a presburger relation.
 void addInequality(PresburgerRelation &rel, ArrayRef<int64_t> ineq) {
   IntegerRelation constraint(rel.getSpace());
   constraint.addInequality(ineq);
   rel = rel.intersect(PresburgerRelation(constraint));
 }
 
-// Add an equality to a presburger relation.
+void addInequality(PresburgerRelation &rel, ArrayRef<DynamicAPInt> ineq) {
+  IntegerRelation constraint(rel.getSpace());
+  constraint.addInequality(ineq);
+  rel = rel.intersect(PresburgerRelation(constraint));
+}
+
 void addEquality(PresburgerRelation &rel, ArrayRef<int64_t> eq) {
   IntegerRelation constraint(rel.getSpace());
   constraint.addEquality(eq);
   rel = rel.intersect(PresburgerRelation(constraint));
+}
+
+void addEquality(PresburgerRelation &rel, ArrayRef<DynamicAPInt> eq) {
+  IntegerRelation constraint(rel.getSpace());
+  constraint.addEquality(eq);
+  rel = rel.intersect(PresburgerRelation(constraint));
+}
+
+DynamicAPInt countIntPointsWithoutParameters(PresburgerRelation &rel) {
+  // If `rel` is empty, then `countIntegerPoints` will return empty
+  // quasi-linear affine functions.
+  // To avoid the hassle later, we deal with the special case here.
+  if (rel.isIntegerEmpty())
+    return DynamicAPInt(0);
+
+  auto v = countIntegerPoints(rel);
+  unsigned chamberCount = 0;
+  Fraction value;
+  for (const auto &[chamber, result] : v) {
+    if (chamber.isIntegerEmpty())
+      continue;
+
+    chamberCount++;
+    value = result.getCoefficients().front();
+  }
+  assert(chamberCount == 1 && "there should only be 1 chamber without parameters!");
+  return value.getAsInteger();
 }
 
 void ComputeDeps::markLexicalOrder() {
@@ -293,7 +324,11 @@ void ComputeDeps::runOnOperation() {
   unsigned nextIndex = 1;
   markLoopInductionVars(module, {}, nextIndex);
 
+  // For testing purposes.
+  DynamicAPInt cacheSize(4);
+
   DynamicAPInt compulsoryMisses(0);
+  DynamicAPInt capacityMisses(0);
 
   auto getelems = findAll<GetElementOp>(module); 
   for (auto sink : getelems) {
@@ -396,13 +431,12 @@ void ComputeDeps::runOnOperation() {
       // `dep` must be lexicographically before `sink`.
       PresburgerRelation rel = PresburgerRelation::getEmpty(depend.getSpace());
       addLexLess(rel, depend, dep, sink, depDims, srcDims);
-      rel.simplify();
       
       // Record this in the map.
       // Note that we can't use `deps[dep] = rel`, because operator[]
       // will attempt to default-construct a PresburgerRelation, which
       // doesn't have a default constructor.
-      depsIndividual.insert({ dep, rel });
+      depsIndividual.insert({ dep, rel.simplify() });
     }
 
     // Currently, `depend` gives all instances of dependences between
@@ -487,6 +521,8 @@ void ComputeDeps::runOnOperation() {
       for (const auto &disjunct : relation.getAllDisjuncts()) {
         IntegerRelation newRel(totalSpace);
         ArrayRef loopParent = loopParents[statement];
+        SmallVector<Operation*> loopParentReversed(loopParent.size());
+        std::copy(loopParent.rbegin(), loopParent.rend(), loopParentReversed.begin());
         Operation *innermostLoop = loopParent.front();
 
         // Record the map from indices to statement.
@@ -497,31 +533,32 @@ void ComputeDeps::runOnOperation() {
         indices.push_back(statementId);
         index2Statement[indices] = statement;
 
-        const auto &raiseToCommonSpace = [&](const IntMatrix &matrix, bool isEquality) {
-          // Add equalities for this statement, that constrains loop
-          // variable indices.
-          for (auto [i, index] : llvm::enumerate(indices)) {
-            SmallVector<DynamicAPInt> equality(commonDims + 1);
-            equality[srcDims + i * 2] = 1;
-            equality.back() = -index;
-            newRel.addEquality(equality);
-          }
-
-          // If some indices are not present for this statement,
-          // we zero out the corresponding entries.
-          // Note the second-to-last entry, i.e. the last dimension is 
-          // reserved for statement index, which is always present.
-          for (unsigned i = indices.size() * 2 + srcDims; i < commonDims - 1; i++) {
-            SmallVector<DynamicAPInt> equality(commonDims + 1);
-            equality[i] = 1;
-            newRel.addEquality(equality);
-          }
-
-          // An additional equality that specifies the statement id.
+        // Add equalities for this statement, that constrains loop
+        // variable indices.
+        for (auto [i, index] : llvm::enumerate(indices)) {
           SmallVector<DynamicAPInt> equality(commonDims + 1);
-          equality[commonDims - 1] = 1;
-          equality.back() = -statementId;
+          equality[srcDims + i * 2] = 1;
+          equality.back() = -index;
+          newRel.addEquality(equality);
+        }
 
+        // If some indices are not present for this statement,
+        // we zero out the corresponding entries.
+        // Note the second-to-last entry, i.e. the last dimension is 
+        // reserved for statement index, which is always present.
+        for (unsigned i = indices.size() * 2 + srcDims; i < commonDims - 1; i++) {
+          SmallVector<DynamicAPInt> equality(commonDims + 1);
+          equality[i] = 1;
+          newRel.addEquality(equality);
+        }
+
+        // An additional equality that specifies the statement id.
+        SmallVector<DynamicAPInt> equality(commonDims + 1);
+        equality[commonDims - 1] = 1;
+        equality.back() = -statementId;
+        newRel.addEquality(equality);
+
+        const auto &raiseToCommonSpace = [&](const IntMatrix &matrix, bool isEquality) {
           for (unsigned i = 0; i < matrix.getNumRows(); i++) {
             SmallVector<DynamicAPInt> newRow(commonDims + 1);
             auto row = matrix.getRow(i);
@@ -532,7 +569,10 @@ void ComputeDeps::runOnOperation() {
 
             // The rest needs to be mapped to their correct position.
             for (unsigned j = srcDims; j < row.size() - 1; j++) {
-              Operation *affineLoop = loopParent[j - srcDims];
+              // This is the (j - srcDims)'th outermost loop.
+              // As loopParent goes from inner to outer, we need
+              // to use its reversed version.
+              Operation *affineLoop = loopParentReversed[j - srcDims];
               auto index = indexMap[affineLoop];
               // Position `index` represents the value.
               newRow[index] = row[j];
@@ -546,7 +586,6 @@ void ComputeDeps::runOnOperation() {
             else
               newRel.addInequality(newRow);
           }
-          newRel.addEquality(equality);
         };
 
         raiseToCommonSpace(disjunct.getEqualities(), true);
@@ -556,25 +595,18 @@ void ComputeDeps::runOnOperation() {
       }
     }
 
-    SymbolicLexOpt lexmax = depsTotal.findSymbolicIntegerLexMax();
+    SymbolicLexOpt lexmax = depsTotal.simplify().findSymbolicIntegerLexMax();
     PWMAFunction deps = lexmax.lexopt;
     assert(deps.getDomainSpace().isCompatible(sinkDomainSpace));
     PresburgerRelation untouched(sinkDomain);
 
     for (const auto &piece : deps.getAllPieces())
       untouched = untouched.subtract(piece.domain);
-    untouched.simplify();
+    untouched = untouched.simplify();
     
     // The number of compulsory misses is equal to the number of integer points in `untouched`.
     // We're going to count it.
-    auto v = countIntegerPoints(untouched);
-    for (const auto &[chamber, result] : v) {
-      if (chamber.isIntegerEmpty())
-        continue;
-
-      auto miss = result.getCoefficients().front();
-      compulsoryMisses += miss.getAsInteger();
-    }
+    compulsoryMisses += countIntPointsWithoutParameters(untouched);
     llvm::errs() << "after considering statement: ";
     sink.dump();
     llvm::errs() << "total compulsory misses = " << compulsoryMisses << "\n";
@@ -583,7 +615,10 @@ void ComputeDeps::runOnOperation() {
     // between `sink(p)` and `deps(sink(p))`.
     // To do this, we enumerate statements between them.
     for (const auto &piece : deps.getAllPieces()) {
-      auto domain = piece.domain;
+      if (piece.domain.isIntegerEmpty())
+        continue;
+
+      auto domain = piece.domain.simplify();
       auto output = piece.output;
       
       // First, extract the index values from `piece.output`.
@@ -644,6 +679,15 @@ void ComputeDeps::runOnOperation() {
       // For each collected operation `u`, compute the `reuseInstance` relation.
       // It is defined as:
       //   { (v_s, p) | deps(S(v_s)) < u(p) < S(v_s) }
+      
+      // All reuseInstances (composed with the corresponding access function)
+      // is recorded in this vector.
+      // For operations accessing the same array, we must raise them to a
+      // common space, rather than summing the counts together directly.
+      // We care only about *unique* accesses between sink and dep, and
+      // a naive sum will count access to the same location multiple times.
+      DenseMap<Operation*, std::vector<PresburgerRelation>> instances;
+
       for (Operation *u : inBetween) {
         auto uBounds = getLoopBounds(u);
         if (!uBounds)
@@ -665,6 +709,25 @@ void ComputeDeps::runOnOperation() {
         auto base = PresburgerRelation::getEmpty(space);
         addLexLess(base, inBound, u, sink, uDims, srcDims);
 
+        // Moreover, constrain v_s to be in `piece.domain`.
+        // We can't intersect directly because they aren't in the same space.
+        for (const auto &disjunct : domain.getAllDisjuncts()) {
+          for (unsigned i = 0; i < disjunct.getNumEqualities(); i++) {
+            auto eq = disjunct.getEquality(i);
+            SmallVector<DynamicAPInt> eqRaised(totalDims + 1);
+            std::copy(eq.begin(), eq.end() - 1, eqRaised.begin());
+            eqRaised.back() = eq.back();
+            addEquality(base, eqRaised);
+          }
+          for (unsigned i = 0; i < disjunct.getNumInequalities(); i++) {
+            auto ineq = disjunct.getInequality(i);
+            SmallVector<DynamicAPInt> ineqRaised(totalDims + 1);
+            std::copy(ineq.begin(), ineq.end() - 1, ineqRaised.begin());
+            ineqRaised.back() = ineq.back();
+            addInequality(base, ineqRaised);
+          }
+        }
+
         // Now we handle the side deps(S(v_s)) < u(p).
         //
         // depDims might not be equal to srcDims. However, they are
@@ -681,7 +744,7 @@ void ComputeDeps::runOnOperation() {
           // i.e. p[i] - d[i] - 1 >= 0.
           IntVector ineq(dims + 1);
           // d[i] is determined by coefficients.
-          // They should be placed to the dimensions of s, which are the first dimensions.
+          // They should be placed to the dimensions of s, which are the dimensions at front.
           for (unsigned j = 0, e = d[i].size() - 1; j < e; j++)
             ineq[j] = -d[i][j];
           // The constant term should always be placed at back.
@@ -707,7 +770,15 @@ void ComputeDeps::runOnOperation() {
           }
         }
 
+        if (0) {
+        // if (!reuseInstance.isIntegerEmpty()) {
+          llvm::errs() << "for statement u = "; u->dump();
+          llvm::errs() << "and statement dep = "; dep->dump();
+          llvm::errs() << "reuseInstance before composition:"; reuseInstance.simplify().dump();
+        }
+        
         auto attr = getAttr<ArrayOffsetAttr>(u);
+        auto getelem = cast<GetElementOp>(u);
         auto accessMap = attr.getMap();
         
         // For every point in the space of induction vector of u,
@@ -721,16 +792,45 @@ void ComputeDeps::runOnOperation() {
 
         PresburgerRelation access(accessRel);
         reuseInstance.compose(access);
+        if (reuseInstance.isIntegerEmpty())
+          continue;
 
         reuseInstance = reuseInstance.computeReprWithOnlyDivLocals().simplify();
-        // reuseInstance.dump();
-        // auto v = countIntegerPoints(reuseInstance);
-        // for (auto &[chamber, result] : v) {
-        //   result.collectTerms().simplify().dump();
-        // }
-      }
-    }
+
+        // Clang IR doesn't use block arguments, so it's fine.
+        instances[getelem.getBase().getDefiningOp()].push_back(reuseInstance);
+      } // for each u in between
+
+      for (const auto &[_, reuses] : instances) {
+        // We must union the relations for the same array, because we only care
+        // about *unique* accesses for each address.
+        assert(!reuses.empty());
+        PresburgerRelation total = reuses[0];
+        for (unsigned i = 1, e = reuses.size(); i < e; i++)
+          total.unionInPlace(reuses[i]);
+
+        // Now for each v_s, `total` gives a set of addresses that `u` has accessed
+        // between v_s and deps.
+        // We hope to calculate the function that maps v_s to the cardinality
+        // of this set, so we can view v_s as parameters and count the set.
+        total.convertVarKind(VarKind::Domain, 0, srcDims, VarKind::Symbol, 0);
+        auto result = countIntegerPoints(total);
+
+        for (const auto &[region, count] : result) {
+          if (region.isIntegerEmpty())
+            continue;
+
+          // Determine whether `count` exceeds cache size in this region.
+          llvm::errs() << "Region: "; region.dump();
+          llvm::errs() << "Count: "; count.dump(); llvm::errs() << "\n";
+        }
+      } // for each array base
+    } // for each piece of lexmax
+
+    llvm::errs() << "total capacity misses = " << capacityMisses << "\n";
   }
+
+  llvm::errs() << "total misses = " << capacityMisses + compulsoryMisses << "\n";
 }
 
 } // namespace
