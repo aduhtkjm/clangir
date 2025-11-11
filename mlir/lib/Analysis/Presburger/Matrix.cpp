@@ -694,6 +694,20 @@ DynamicAPInt IntMatrix::determinant(IntMatrix *inverse) const {
   return detM;
 }
 
+IntMatrix &IntMatrix::operator+=(const IntMatrix &other) {
+  assert(getNumColumns() == other.getNumColumns() && getNumRows() == other.getNumRows());
+  for (unsigned i = 0; i < getNumRows(); i++) {
+    for (unsigned j = 0; j < getNumColumns(); j++)
+      at(i, j) += other(i, j);
+  }
+  return *this;
+}
+
+IntMatrix IntMatrix::operator+(const IntMatrix &other) const {
+  IntMatrix x = *this;
+  return x += other;
+}
+
 FracMatrix FracMatrix::identity(unsigned dimension) {
   return Matrix::identity(dimension);
 }

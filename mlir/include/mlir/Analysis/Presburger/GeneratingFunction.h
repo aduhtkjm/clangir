@@ -89,6 +89,11 @@ public:
   }
 
   llvm::raw_ostream &print(llvm::raw_ostream &os) const {
+    if (signs.size() == 0) {
+      os << "<empty>";
+      return os;
+    }
+    
     for (unsigned i = 0, e = signs.size(); i < e; i++) {
       if (i == 0) {
         if (signs[i] == -1)

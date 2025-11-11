@@ -65,6 +65,7 @@ fi
 if [[ -n $simul ]]; then
   testpath=$(find $polybench $tamper/test -regextype posix-extended -regex ".*$simul(_test|_simul)\.c(pp)?")
   echo running: $testpath
+  echo -n "> "
   clang++ $testpath -o a.out
   ./a.out
   rm a.out
@@ -86,6 +87,8 @@ if [[ -n $testcase ]]; then
   echo "testing: $testpath"
   output=$tamper/"$testcase.mlir"
   rm -f $output
+  # Output a hint to input cache size.
+  echo -n "> "
   if [[ -n $valgrind ]]; then
     valgrind clang -I$polybench/utilities -fclangir -emit-cir $testpath -o $output
   else

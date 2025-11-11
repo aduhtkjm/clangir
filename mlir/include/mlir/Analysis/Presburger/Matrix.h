@@ -306,6 +306,10 @@ public:
   // M x M' = M'  M = det(M) x I.
   // Assert-fails if the matrix is not square.
   DynamicAPInt determinant(IntMatrix *inverse = nullptr) const;
+
+  // Pointwise addition.
+  IntMatrix &operator+=(const IntMatrix &other);
+  IntMatrix operator+(const IntMatrix &other) const;
 };
 
 // An inherited class for rational matrices, with no new data attributes.

@@ -2558,6 +2558,10 @@ bool IntegerRelation::isFullDim() {
 
   // The polytope is full-dimensional iff it is not flat along any of the
   // inequality directions.
+  // However, we need to first rule out the case like `0x + 0y + 2 >= 0`,
+  // which is flat but doesn't pose any constraint on variables. These are
+  // removed as redundancies.
+  removeTrivialRedundancy();
   Simplex simplex(*this);
   return llvm::none_of(llvm::seq<int>(getNumInequalities()), [&](int i) {
     return simplex.isFlatAlong(getInequality(i));

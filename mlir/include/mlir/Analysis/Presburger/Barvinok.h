@@ -66,16 +66,18 @@ inline PolyhedronH defineHRep(int numVars, int numSymbols = 0) {
                                                   /*numLocals=*/0));
 }
 
-/// For a polyhedron { x | Ax = B, Cx = D }, this function finds another 
-/// polyhedron { x | C'x = D' } with the same amount of integer points.
-/// Note that this can't deal with parameters currently.
-PolyhedronH eliminateEqualities(const PolyhedronH &poly);
+/// For a polyhedron { x | Ax = Bp + C, Dx = Ep + F }, this function finds another 
+/// polyhedron { x | D'x = E'p + F } with the same amount of integer points.
+/// It also returns the constraints on `p` that makes the polyhedron non-empty.
+std::pair<IntegerRelation, PolyhedronH> eliminateEqualities(const PolyhedronH &poly);
 
 /// The `computePolytopeGeneratingFunction` function only works when its
 /// input is full-dimensional. Therefore, for a non-full-dimensional
 /// polyhedron, we must first project it to a lower-dimensional space such
 /// that the projection has the same amount of integer points.
-PolyhedronH projectToFullDimension(PolyhedronH poly);
+/// It also returns the constraints on the parameters that makes the polyhedron
+/// non-empty.
+std::pair<IntegerRelation, PolyhedronH> projectToFullDimension(PolyhedronH poly);
 
 /// Get the index of a cone, i.e., the volume of the parallelepiped
 /// spanned by its generators, which is equal to the number of integer
@@ -160,7 +162,7 @@ QuasiPolynomial computeNumTerms(const GeneratingFunction &gf);
 /// chambers, and gives the quasi-polynomial that represents the integer
 /// count of the polyhedron when parameters are in the chamber.
 std::vector<std::pair<PresburgerRelation, QuasiPolynomial>>
-countIntegerPoints(PresburgerRelation &rel);
+countIntegerPoints(const PresburgerRelation &rel);
 
 } // namespace detail
 } // namespace presburger

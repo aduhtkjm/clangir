@@ -18,8 +18,10 @@ using namespace mlir::presburger::detail;
 
 using IntVector = llvm::SmallVector<llvm::DynamicAPInt>;
 
+namespace {
+
 // Matrix multiplication.
-static IntMatrix matmul(const IntMatrix &a, const IntMatrix &b) {
+IntMatrix matmul(const IntMatrix &a, const IntMatrix &b) {
   assert(a.getNumColumns() == b.getNumRows());
   unsigned n = a.getNumRows();
   unsigned m = b.getNumRows();
@@ -36,7 +38,12 @@ static IntMatrix matmul(const IntMatrix &a, const IntMatrix &b) {
   return result;
 }
 
-static std::optional<IntMatrix> findParticularSolution(const IntMatrix &eqs, const IntMatrix &constants) {
+struct ParticularSolution {
+  IntegerRelation constraint;
+  IntMatrix solution;
+};
+
+ParticularSolution findParticularSolution(const IntMatrix &eqs, const IntMatrix &constants) {
   auto [u, d, v] = eqs.computeSmithNormalForm();
   
   // We are solving Ax = Bp + C. Now we've obtained UAV = D, where D is the Smith Normal Form.
@@ -64,35 +71,136 @@ static std::optional<IntMatrix> findParticularSolution(const IntMatrix &eqs, con
 
   // The result, in a form [y_B | y_C] that represents y_B p + y_C.
   IntMatrix y(numCols, numRhsCols);
+  SmallVector<unsigned> modIndex, eqIndex;
   for (unsigned i = 0; i < numRows; i++) {
-    // (UBp + UC)_i is essentially (UB)[i, :] \cdot p + (UC)_i.
-    // If any of the entries aren't zero when s_i is zero, the polyhedron is empty.
     MutableArrayRef row = rhs.getRow(i);
-    if (std::any_of(row.begin(), row.end(), [](const DynamicAPInt &x) { return x != 0; }) && d(i, i) == 0)
-      return std::nullopt;
+    // It is possible that there are more rows than columns. But by Smith Normal Form,
+    // the extra rows are all zero.
+    auto s = i >= numCols ? DynamicAPInt() : d(i, i);
 
-    // When s_i does not divide (UB)[i, j] or (UC)_i, y_i is fractional.
+    // (UBp + UC)_i is essentially (UB)[i, :] \cdot p + (UC)_i.
+    // If any of the entries aren't zero when s_i is zero, this implies an extra constraint.
+    if (s == 0 && std::any_of(row.begin(), row.end(), [](const DynamicAPInt &x) { return x != 0; }))
+      // This is an equality constraint, e.g. 0x + 3N - 6 == 0 implies N == 2.
+      eqIndex.push_back(i);
+
+    // When s_i does not divide (UB)[i, j] or (UC)_i (it doesn't have the "strong division
+    // property"), we'll have a fractional y_i.
     // However, as x and V^{-1} only have integers (the latter is by unimodularity),
     // y = V^{-1}x should only contain integers if we want the polyhedron to be non-empty.
     // for all values of p.
-    // (TODO: We could also return a constraint of p, but this is not implemented.)
-    auto s = d(i, i);
     if (s != 0 && std::any_of(row.begin(), row.end(), [&](const DynamicAPInt &x) { return x % s != 0; }))
-      return std::nullopt;
+      // This is a modular constraint, e.g. 2x + 3N - 5 == 0 implies (3N - 5) % 2 == 0.
+      modIndex.push_back(i);
 
     // A constraint s_i y_i = (UB)[i, :] p + (UC)_i is found and must be enforced.
-    if (s != 0) {
+    else if (s != 0) {
       for (unsigned j = 0; j < numRhsCols; j++)
         y(i, j) = rhs(i, j) / s;
     }
   }
 
-  return matmul(v, y);
+  // For modular constraints, we use div-locals to capture them.
+  unsigned numParams = numRhsCols - 1;
+  unsigned numLocals = modIndex.size();
+  unsigned dims = numParams + numLocals;
+  auto space = PresburgerSpace::getSetSpace(numParams, numLocals);
+  IntegerRelation constraints(space);
+
+  // Let's denote the div-locals as `z`. Then we're having Bp + Sz - C = 0.
+  // From a similar reasoning of `eliminateEqualities`, we can rewrite this as
+  //    p = Vq + p_0
+  // where V is the null space of [B | S] and p_0 is a particular solution to
+  // this (now non-parametric) system of equations.
+  // Then, we're having Ax = Bp + C = BVq + (Bp_0 + C).
+  //
+  // Now this always satisfies the "strong division property". Moreover,
+  // an integer solution of `x` in this system will also be an integer
+  // solution of `x` in the original system.
+  
+  // First, we'll create the constraints of `p`.
+  for (auto i : eqIndex) {
+    // These means the RHS must be equal to zero, so we can directly add them
+    // as constraints, modulo the locals.
+    auto row = rhs.getRow(i);
+    IntVector eq(dims + 1);
+    std::copy(row.begin(), row.end() - 1, eq.begin());
+    eq.back() = row.back();
+    constraints.addEquality(eq);
+  }
+
+  for (auto [j, i] : llvm::enumerate(modIndex)) {
+    // These will use the j'th local variable to express a modulus constraint.
+    auto row = rhs.getRow(i);
+    IntVector eq(dims + 1);
+    std::copy(row.begin(), row.end() - 1, eq.begin());
+    // The divisor is in fact d(i, i), which is row[i].
+    const DynamicAPInt &divisor = row[i];
+    eq[numParams + j] = divisor;
+    eq.back() = row.back();
+    constraints.addEquality(eq);
+  }
+
+  // If there is completely no parameters or no locals, then no further action
+  // is needed.
+  // As we've already got `y` and we've let y = V^{-1}x, we've obtained the
+  // solution.
+  if (numParams == 0 || numLocals == 0)
+    return { constraints, matmul(v, y) };
+
+  // Otherwise, we must re-parameterize the constraints.
+  // Similar to the eliminateEqualities procedure below, we obtain the null
+  // space of B from its Hermite normal form.
+  //
+  // The procedure is very similar, so we don't repeat the explanations here.
+  // Note we're operating on `constants`, rather than `rhs`.
+  IntMatrix b = constants.getSubMatrix(0, numRows, 0, dims - 1);
+  IntMatrix c = constants.getSubMatrix(0, numRows, dims - 1, dims - 1);
+
+  IntMatrix transpose = b.transpose();
+  auto [hnf, uB] = transpose.computeRowHermiteNormalForm();
+  unsigned rank = 0;
+  for (int i = 0, e = hnf.getNumRows(); i < e; i++) {
+    const auto &row = hnf.getRow(i);
+    bool hasNonZero = std::any_of(row.begin(), row.end(), [&](const DynamicAPInt &value) {
+      return value != 0;
+    });
+    if (hasNonZero)
+      rank++;
+    else
+      break;
+  }
+  
+  if (rank >= numRows) {
+    // In this case, the parameter space has a unique solution.
+    llvm_unreachable("NYI: Full rank in elim");
+  }
+
+  IntMatrix basis = u.getSubMatrix(rank, numRows - 1, 0, numRows - 1).transpose();
+  // There's no parameter at all, so the constraint is either empty or the universe.
+  // When the constraint is empty, there is no such parameter p that makes the solution
+  // exist. Therefore, we return a nowhere valid constraint.
+  auto [cp, solution] = findParticularSolution(b, c);
+  if (cp.isIntegerEmpty())
+    return { IntegerRelation::getEmpty(space), solution };
+
+  // Now substitute it back.
+  auto newB = matmul(b, basis);
+  auto newC = matmul(b, solution) + c;
+  IntMatrix newConstants = newB;
+  newConstants.insertColumn(newConstants.getNumColumns());
+  for (unsigned i = 0; i < newConstants.getNumRows(); i++)
+    newConstants(i, newConstants.getNumColumns() - 1) = newC(i, 0);
+
+  return findParticularSolution(eqs, newConstants);
 }
 
-PolyhedronH mlir::presburger::detail::eliminateEqualities(const PolyhedronH &poly) {
+} // namespace
+
+std::pair<IntegerRelation, PolyhedronH> mlir::presburger::detail::eliminateEqualities(const PolyhedronH &poly) {
+  auto paramSpace = PresburgerSpace::getSetSpace(poly.getNumSymbolVars());
   if (poly.getNumEqualities() == 0)
-    return poly;
+    return { IntegerRelation::getUniverse(paramSpace), poly };
   // Divlocals are unique and hence doesn't need special treatment.
   // They can be just viewed as normal variables.
   assert(poly.hasOnlyDivLocals());
@@ -197,25 +305,6 @@ PolyhedronH mlir::presburger::detail::eliminateEqualities(const PolyhedronH &pol
     }
   }
   
-  if (rank >= n) {
-    // When the matrix is full-ranked, the kernel is empty.
-    // In this case, Ax = B has a unique solution or none at all.
-    assert(rank == n);
-    if (poly.findIntegerSample())
-      // Returns a singleton set.
-      return PolyhedronH::getUniverse(PresburgerSpace::getSetSpace());
-
-    return PolyhedronH::getEmpty(poly.getSpace());
-  }
-
-  // We transpose because we want the column vectors to form the basis,
-  // rather than row vectors.
-  IntMatrix basis = u.getSubMatrix(rank, n - 1, 0, n - 1).transpose();
-
-  auto solution = findParticularSolution(coeffs, constants); // n * (p + 1)
-  if (!solution)
-    return PolyhedronH::getEmpty(poly.getSpace());
-  
   // The inequalities are stored in the form Dx + Ep + F >= 0.
   // So it's changed to D(Vy + x_0(p, 1)) + [E | F](p, 1) >= 0,
   // i.e. (DV)y + (Dx_0 + [E | F])(p, 1) >= 0.
@@ -231,19 +320,66 @@ PolyhedronH mlir::presburger::detail::eliminateEqualities(const PolyhedronH &pol
   unsigned ineqRows = ineqs.getNumRows();
   unsigned ineqCols = ineqs.getNumColumns();
   assert(ineqCols == n + p + 1);
+
+  // Find the particular solution as described above.
+  auto [constraint, solution] = findParticularSolution(coeffs, constants); // n * (p + 1)
+  if (constraint.isIntegerEmpty())
+    return { IntegerRelation::getUniverse(paramSpace), PolyhedronH::getEmpty(poly.getSpace()) };
+  
+  if (rank >= n) {
+    // When the matrix is full-ranked, the kernel is empty.
+    // In this case, Ax = Bp + C has a unique solution or none at all.
+    assert(rank == n);
+    auto [constraint, solution] = findParticularSolution(coeffs, constants);
+    // If there is no parameter, then don't care about parameter space.
+    if (p == 0)
+      return { constraint, PolyhedronH::getUniverse(PresburgerSpace::getSetSpace()) };
+    
+    // It isn't enough if we only have the constraints for Ax = Bp + C.
+    // We must also take care of Dx + Ep + F >= 0.
+    // We won't worry about this in non-0-dimensional cases, because we've done
+    // chambering over the parameter space. However, in this case we won't go
+    // to `computePolytopeGeneratingFunction` as that function does not support
+    // 0-dimensional inputs, so we must handle the constraints ourselves.
+    //
+    // Now let's substitute the solution x = Up + V into it.
+    // Then (DU + E)p + DV + F >= 0, which are new constraints of p.
+    unsigned solRows = solution.getNumRows();
+
+    auto d = ineqs.getSubMatrix(0, ineqRows - 1, 0, n - 1);
+    auto e = ineqs.getSubMatrix(0, ineqRows - 1, n, n + p - 1);
+    auto f = ineqs.getSubMatrix(0, ineqRows - 1, n + p, n + p);
+
+    auto u = solution.getSubMatrix(0, solRows - 1, 0, p - 1);
+    auto v = solution.getSubMatrix(0, solRows - 1, p, p);
+    
+    auto coeffP = matmul(d, u) + e;
+    auto constP = matmul(d, v) + f;
+    // Concatenate the matrices together.
+    coeffP.insertColumn(coeffP.getNumColumns());
+    for (unsigned i = 0; i < ineqRows; i++)
+      coeffP(i, coeffP.getNumColumns() - 1) = constP(i, 0);
+
+    // The real constraint should be the intersection of both constraints,
+    // one from the equalities and the other from the inequalities.
+    for (unsigned i = 0; i < ineqRows; i++)
+      constraint.addInequality(coeffP.getRow(i));
+
+    // Returns a singleton set.
+    return { constraint, PolyhedronH::getUniverse(PresburgerSpace::getSetSpace()) };
+  }
+
+  // We transpose because we want the column vectors to form the basis,
+  // rather than row vectors.
+  IntMatrix basis = u.getSubMatrix(rank, n - 1, 0, n - 1).transpose();
   auto ineqCoeffs = ineqs.getSubMatrix(0, ineqRows - 1, 0, n - 1);
-  IntMatrix rhs = matmul(ineqCoeffs, *solution);
+  IntMatrix rhs = matmul(ineqCoeffs, solution);
   IntMatrix newCoeffs = matmul(ineqCoeffs, basis);
 
   // Add a new column for the constants, and calculate the value.
   // Be careful that `ineqCoeffs` has fewer columns after the matmul.
   auto before = ineqs.getSubMatrix(0, ineqRows - 1, n, ineqCols - 1);
-  // Pointwise add the entries.
-  assert(rhs.getNumColumns() == before.getNumColumns() && rhs.getNumRows() == before.getNumRows());
-  for (unsigned i = 0; i < rhs.getNumRows(); i++) {
-    for (unsigned j = 0; j < rhs.getNumColumns(); j++)
-      rhs(i, j) += before(i, j);
-  }
+  rhs += before;
   // Concatenate (horizontally stack) rhs after ineqCoeffs.
   unsigned newCols = newCoeffs.getNumColumns();
   newCoeffs.insertColumns(newCols, p + 1);
@@ -257,7 +393,8 @@ PolyhedronH mlir::presburger::detail::eliminateEqualities(const PolyhedronH &pol
   auto resultPoly = PolyhedronH(ineqRows, 0, numVars + 1, space);
   for (unsigned i = 0; i < ineqRows; i++)
     resultPoly.addInequality(newCoeffs.getRow(i));
-  return resultPoly;
+  resultPoly.simplify();
+  return { constraint, resultPoly };
 }
 
 static IntMatrix getAffineHull(const PolyhedronH &poly) {
@@ -281,10 +418,12 @@ static IntMatrix getAffineHull(const PolyhedronH &poly) {
   return mat;
 }
 
-PolyhedronH mlir::presburger::detail::projectToFullDimension(PolyhedronH poly) {
+std::pair<IntegerRelation, PolyhedronH> mlir::presburger::detail::projectToFullDimension(PolyhedronH poly) {
   auto affineHull = getAffineHull(poly);
-  if (affineHull.getNumRows() == 0 && poly.getNumEqualities() == 0)
-    return poly;
+  if (affineHull.getNumRows() == 0 && poly.getNumEqualities() == 0) {
+    auto paramSpace = PresburgerSpace::getSetSpace(poly.getNumSymbolVars());
+    return { IntegerRelation::getUniverse(paramSpace), poly };
+  }
 
   for (unsigned i = 0, e = affineHull.getNumRows(); i < e; i++)
     poly.addEquality(affineHull.getRow(i));
@@ -1103,29 +1242,31 @@ void obtainRegions(const PresburgerRelation &rel, const PolyhedronH &current, Sm
       return;
     
     // Compute generating functions on active regions.
-    auto projected = projectToFullDimension(current);
-    // TODO: how to deal with singleton sets?
+    // By "active region", we must also take the parameter space
+    // constraint into consideration.
+    auto [c, projected] = projectToFullDimension(current);
+    PresburgerRelation constraint(c);
+
+    // A singleton set.
     if (projected.getNumVars() == 0) {
       unsigned syms = rel.getNumSymbolVars();
-      auto space = PresburgerSpace::getSetSpace(syms);
       auto one = QuasiPolynomial(syms, 1);
-      outRecords.push_back({ active, PresburgerSet(PresburgerRelation::getUniverse(space)), one });
+      outRecords.push_back({ active, constraint, one });
       return;
     }
     if (projected.isIntegerEmpty())
       return;
     auto gfs = computePolytopeGeneratingFunction(projected);
-    for (const auto &[region, gf] : gfs) {
-      if (region.isIntegerEmpty())
+    for (const auto &[region_, gf] : gfs) {
+      auto region = region_.intersect(constraint);
+      // It is possible for a non-empty region to have an empty gf.
+      // This simply means there's no integer points inside it.
+      if (region.isIntegerEmpty() || gf.getSigns().size() == 0)
         continue;
       
-      if (gf.getSigns().size() == 0) {
-        llvm::errs() << "warning: region non-empty, but gf empty\n";
-        continue;
-      }
       QuasiPolynomial q = computeNumTerms(gf);
       q = q.collectTerms().simplify();
-      outRecords.push_back({ active, region, q });
+      outRecords.push_back({ active, region.simplify(), q });
     }
     return;
   }
@@ -1145,7 +1286,7 @@ void obtainRegions(const PresburgerRelation &rel, const PolyhedronH &current, Sm
 } // namespace
 
 std::vector<std::pair<PresburgerRelation, QuasiPolynomial>>
-mlir::presburger::detail::countIntegerPoints(PresburgerRelation &rel) {
+mlir::presburger::detail::countIntegerPoints(const PresburgerRelation &rel) {
   std::vector<Region> records;
   SmallVector<unsigned> active;
   auto universe = IntegerRelation::getUniverse(rel.getSpace());
@@ -1177,7 +1318,7 @@ mlir::presburger::detail::countIntegerPoints(PresburgerRelation &rel) {
   // Now refinement is a list of pairwise-disjoint (up to lower-dim) chambers.
   // For each refinement chamber, collect contributions and sum quasi-polynomials.
   std::vector<std::pair<PresburgerRelation, QuasiPolynomial>> result;
-  for (PresburgerRelation &chamber : refinement) {
+  for (const PresburgerRelation &chamber : refinement) {
     // Build the inclusion-exclusion sum.
      
     // A zero polynomial.

@@ -44,6 +44,7 @@ private:
   // The variables `z` might be given index { 1 },
   // and `i` { 2 }, `j` { 2, 1 }, `k` { 2, 2 } respectively.
   DenseMap<Operation*, SmallVector<unsigned>> loopVarIndex;
+  friend class LessAccess;
 };
 
 // Checks whether an operation is a CIR operation representing a constant integer.
@@ -214,25 +215,13 @@ void addInequality(PresburgerRelation &rel, ArrayRef<int64_t> ineq) {
   rel = rel.intersect(PresburgerRelation(constraint));
 }
 
-void addInequality(PresburgerRelation &rel, ArrayRef<DynamicAPInt> ineq) {
-  IntegerRelation constraint(rel.getSpace());
-  constraint.addInequality(ineq);
-  rel = rel.intersect(PresburgerRelation(constraint));
-}
-
 void addEquality(PresburgerRelation &rel, ArrayRef<int64_t> eq) {
   IntegerRelation constraint(rel.getSpace());
   constraint.addEquality(eq);
   rel = rel.intersect(PresburgerRelation(constraint));
 }
 
-void addEquality(PresburgerRelation &rel, ArrayRef<DynamicAPInt> eq) {
-  IntegerRelation constraint(rel.getSpace());
-  constraint.addEquality(eq);
-  rel = rel.intersect(PresburgerRelation(constraint));
-}
-
-DynamicAPInt countIntPointsWithoutParameters(PresburgerRelation &rel) {
+DynamicAPInt countIntPointsWithoutParameters(const PresburgerRelation &rel) {
   // If `rel` is empty, then `countIntegerPoints` will return empty
   // quasi-linear affine functions.
   // To avoid the hassle later, we deal with the special case here.
@@ -318,6 +307,17 @@ void ComputeDeps::addLexLess(PresburgerRelation &rel, IntegerRelation base,
   }
 }
 
+class LessAccess {
+  ComputeDeps *parent;
+
+public:
+  LessAccess(ComputeDeps *parent): parent(parent) {}
+  bool operator()(Operation *l, Operation *r) const {
+    assert(parent->lexIndex.count(l) && parent->lexIndex.count(r));
+    return parent->lexIndex[l] < parent->lexIndex[r];
+  }
+};
+
 void ComputeDeps::runOnOperation() {
   auto *module = getOperation();
   markLexicalOrder();
@@ -325,10 +325,11 @@ void ComputeDeps::runOnOperation() {
   markLoopInductionVars(module, {}, nextIndex);
 
   // For testing purposes.
-  DynamicAPInt cacheSize(4);
+  int cacheInput;
+  scanf("%d", &cacheInput);
+  DynamicAPInt cacheSize(cacheInput);
 
-  DynamicAPInt compulsoryMisses(0);
-  DynamicAPInt capacityMisses(0);
+  DynamicAPInt compulsoryMisses, capacityMisses;
 
   auto getelems = findAll<GetElementOp>(module); 
   for (auto sink : getelems) {
@@ -371,7 +372,9 @@ void ComputeDeps::runOnOperation() {
 
     // For every statement that sink depends on, record the `depend` relation,
     // defined below.
-    DenseMap<Operation*, PresburgerRelation> depsIndividual;
+    // We compare lexIndex to maintain a well-defined order. If we use the
+    // order between pointers, it is completely arbitrary.
+    std::map<Operation*, PresburgerRelation, LessAccess> depsIndividual(LessAccess(this));
 
     // Check whether `sink` depends on `dep`.
     for (auto dep : getelems) {
@@ -607,9 +610,6 @@ void ComputeDeps::runOnOperation() {
     // The number of compulsory misses is equal to the number of integer points in `untouched`.
     // We're going to count it.
     compulsoryMisses += countIntPointsWithoutParameters(untouched);
-    llvm::errs() << "after considering statement: ";
-    sink.dump();
-    llvm::errs() << "total compulsory misses = " << compulsoryMisses << "\n";
 
     // Now, for each chamber of `deps`, we want to get the number of instances
     // between `sink(p)` and `deps(sink(p))`.
@@ -711,22 +711,13 @@ void ComputeDeps::runOnOperation() {
 
         // Moreover, constrain v_s to be in `piece.domain`.
         // We can't intersect directly because they aren't in the same space.
-        for (const auto &disjunct : domain.getAllDisjuncts()) {
-          for (unsigned i = 0; i < disjunct.getNumEqualities(); i++) {
-            auto eq = disjunct.getEquality(i);
-            SmallVector<DynamicAPInt> eqRaised(totalDims + 1);
-            std::copy(eq.begin(), eq.end() - 1, eqRaised.begin());
-            eqRaised.back() = eq.back();
-            addEquality(base, eqRaised);
-          }
-          for (unsigned i = 0; i < disjunct.getNumInequalities(); i++) {
-            auto ineq = disjunct.getInequality(i);
-            SmallVector<DynamicAPInt> ineqRaised(totalDims + 1);
-            std::copy(ineq.begin(), ineq.end() - 1, ineqRaised.begin());
-            ineqRaised.back() = ineq.back();
-            addInequality(base, ineqRaised);
-          }
-        }
+        // We first convert all range variables in `domain` into domain variables,
+        // to match that of `space`.
+        auto domainCopy = domain;
+        domainCopy.convertVarKind(VarKind::Range, 0, srcDims, VarKind::Domain, 0);
+        // Then we insert `uDims` dummy (unconstrained) variables as range.
+        domainCopy.insertVarInPlace(VarKind::Range, 0, uDims);
+        base = base.intersect(domainCopy).simplify();
 
         // Now we handle the side deps(S(v_s)) < u(p).
         //
@@ -769,13 +760,6 @@ void ComputeDeps::runOnOperation() {
             break;
           }
         }
-
-        if (0) {
-        // if (!reuseInstance.isIntegerEmpty()) {
-          llvm::errs() << "for statement u = "; u->dump();
-          llvm::errs() << "and statement dep = "; dep->dump();
-          llvm::errs() << "reuseInstance before composition:"; reuseInstance.simplify().dump();
-        }
         
         auto attr = getAttr<ArrayOffsetAttr>(u);
         auto getelem = cast<GetElementOp>(u);
@@ -814,6 +798,7 @@ void ComputeDeps::runOnOperation() {
         // We hope to calculate the function that maps v_s to the cardinality
         // of this set, so we can view v_s as parameters and count the set.
         total.convertVarKind(VarKind::Domain, 0, srcDims, VarKind::Symbol, 0);
+        total = total.simplify();
         auto result = countIntegerPoints(total);
 
         for (const auto &[region, count] : result) {
@@ -821,15 +806,46 @@ void ComputeDeps::runOnOperation() {
             continue;
 
           // Determine whether `count` exceeds cache size in this region.
-          llvm::errs() << "Region: "; region.dump();
-          llvm::errs() << "Count: "; count.dump(); llvm::errs() << "\n";
+          // The space here has only |v_s| range variables.
+          PresburgerRelation rel(region);
+          IntegerRelation exceed(region.getSpace());
+          assert(region.getSpace().getNumVars() == srcDims);
+
+          SmallVector<DynamicAPInt> ineq(srcDims + 1);
+          for (unsigned i = 0, e = count.getCoefficients().size(); i < e; i++) {
+            auto coeff = count.getCoefficients()[i];
+            auto affine = count.getAffine()[i];
+            if (affine.size() > 1)
+              llvm_unreachable("NYI: more multiplications");
+            
+            // A constant.
+            if (affine.size() == 0)
+              ineq.back() += coeff.getAsInteger();
+
+            // A single affine expression.
+            if (affine.size() == 1) {
+              const auto &expr = affine[0];
+              assert(std::all_of(expr.begin(), expr.end(), [](const Fraction &f) { return f.num % f.den == 0; }));
+              assert(expr.size() == srcDims + 1);
+              for (unsigned i = 0; i < srcDims + 1; i++)
+                ineq[i] += expr[i].getAsInteger();
+            }
+          }
+
+          ineq.back() -= cacheSize;
+          exceed.addInequality(ineq);
+          rel = rel.intersect(PresburgerRelation(exceed));
+          rel = rel.intersect(domain).simplify();
+
+          auto misses = countIntPointsWithoutParameters(rel);
+          capacityMisses += misses;
         }
       } // for each array base
     } // for each piece of lexmax
+  } // for every sink
 
-    llvm::errs() << "total capacity misses = " << capacityMisses << "\n";
-  }
-
+  llvm::errs() << "total compulsory misses = " << compulsoryMisses << "\n";
+  llvm::errs() << "total capacity misses = " << capacityMisses << "\n";
   llvm::errs() << "total misses = " << capacityMisses + compulsoryMisses << "\n";
 }
 
