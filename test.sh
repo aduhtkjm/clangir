@@ -3,11 +3,32 @@
 die() {
   echo -e "\e[31merror:\e[0m $1"
 }
+warn() {
+  echo -e "\e[33mwarning:\e[0m $1"
+}
 
 while [[ $# -gt 0 ]]; do
   case "$1" in
     -c|--cmake)
       run_cmake=1; shift;;
+    -C|--cache-size)
+      if [[ -z $2 ]]; then
+        die "expected cache size after $1"
+        exit 1
+      fi
+      cachesize=$2; shift 2;;
+    -u|--unit-test)
+      ninja -C build check-mlir-unit
+      exit 0;;
+    -b|--barvinok)
+      if [[ -z $2 ]]; then
+        warn "no input file after $1, default to ./input.txt"
+        input=./input.txt
+      else
+        input=$2
+      fi
+      cat "$input" | /opt/bin/barvinok_count
+      exit 0;;
     -t|--test)
       if [[ -z $2 ]]; then
         die "expected test case name after $1"
@@ -52,11 +73,19 @@ if [[ -n $failed ]]; then
   exit 1
 fi
 
+# Give a default cache size.
+if [[ -z $cachesize ]]; then
+  if [[ -n $testcase || -n $simul ]]; then
+    cachesize=4
+    warn "cache size not specified, default to $cachesize"
+  fi
+fi
+
 polybench=../polybench
 tamper=../tamper
 if [[ -n $newtest ]]; then
   if [[ $newtest != *.* ]]; then
-    newtest=$newtest.c
+    newtest=$newtest.cpp
   fi
   code $tamper/test/$newtest
   exit 0
@@ -65,9 +94,12 @@ fi
 if [[ -n $simul ]]; then
   testpath=$(find $polybench $tamper/test -regextype posix-extended -regex ".*$simul(_test|_simul)\.c(pp)?")
   echo running: $testpath
-  echo -n "> "
-  clang++ $testpath -o a.out
-  ./a.out
+  if [[ -n $verbose ]]; then
+    clang++ -O2 -DVERBOSE $testpath -o a.out
+  else
+    clang++ -O2 $testpath -o a.out
+  fi
+  echo $cachesize | ./a.out
   rm a.out
   exit 0
 fi
@@ -83,19 +115,17 @@ if [[ $? -ne 0 ]]; then
 fi
 
 if [[ -n $testcase ]]; then
-  testpath=$(find $polybench $tamper/test -name "$testcase.c")
+  testpath=$(find $polybench $tamper/test -regextype posix-extended -regex ".*$testcase\.c(pp)?")
   echo "testing: $testpath"
   output=$tamper/"$testcase.mlir"
   rm -f $output
-  # Output a hint to input cache size.
-  echo -n "> "
   if [[ -n $valgrind ]]; then
-    valgrind clang -I$polybench/utilities -fclangir -emit-cir $testpath -o $output
+    echo $cachesize | valgrind clang -I$polybench/utilities -emit-cir $testpath -o $output
   else
-    clang -I$polybench/utilities -fclangir -emit-cir $testpath -o $output
+    echo $cachesize | clang -I$polybench/utilities -emit-cir $testpath -o $output
   fi
   if [[ ! -f $output ]]; then
-    echo "error: compilation failed."
+    die "compilation failed."
   else
     sed -E 's/(^#loc.+)|((^| )loc\(.+\)$)//' $output | awk NF > tmp
     if [[ -n $verbose ]]; then

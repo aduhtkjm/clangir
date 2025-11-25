@@ -15,7 +15,6 @@
 #include "llvm/ADT/STLExtras.h"
 #include "llvm/ADT/SmallBitVector.h"
 #include "llvm/ADT/SmallVector.h"
-#include "llvm/Support/LogicalResult.h"
 #include "llvm/Support/raw_ostream.h"
 #include <cassert>
 #include <functional>
@@ -42,7 +41,8 @@ void PresburgerRelation::insertVarInPlace(VarKind kind, unsigned pos,
                                           unsigned num) {
   for (IntegerRelation &cs : disjuncts)
     cs.insertVar(kind, pos, num);
-  space.insertVar(kind, pos, num);
+  if (kind != VarKind::Local)
+    space.insertVar(kind, pos, num);
 }
 
 void PresburgerRelation::convertVarKind(VarKind srcKind, unsigned srcPos,
@@ -70,7 +70,16 @@ ArrayRef<IntegerRelation> PresburgerRelation::getAllDisjuncts() const {
   return disjuncts;
 }
 
+MutableArrayRef<IntegerRelation> PresburgerRelation::getAllDisjuncts() {
+  return disjuncts;
+}
+
 const IntegerRelation &PresburgerRelation::getDisjunct(unsigned index) const {
+  assert(index < disjuncts.size() && "index out of bounds!");
+  return disjuncts[index];
+}
+
+IntegerRelation &PresburgerRelation::getDisjunct(unsigned index) {
   assert(index < disjuncts.size() && "index out of bounds!");
   return disjuncts[index];
 }
@@ -444,8 +453,15 @@ static PresburgerRelation getSetDifference(IntegerRelation b,
           unsigned lb = repr[i].repr.inequalityPair.lowerBoundIdx;
           unsigned ub = repr[i].repr.inequalityPair.upperBoundIdx;
 
-          b.addInequality(sI.getInequality(lb));
-          b.addInequality(sI.getInequality(ub));
+          // b.addInequality(sI.getInequality(lb));
+          // b.addInequality(sI.getInequality(ub));
+          
+          b.addInequality(
+              getDivLowerBound(divs.getDividend(i), divs.getDenom(i),
+                               sI.getVarKindOffset(VarKind::Local) + i));
+          b.addInequality(
+              getDivUpperBound(divs.getDividend(i), divs.getDenom(i),
+                               sI.getVarKindOffset(VarKind::Local) + i));
 
           assert(lb != ub &&
                  "Upper and lower bounds must be different inequalities!");

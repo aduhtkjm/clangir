@@ -76,9 +76,11 @@ public:
 
   /// Return a reference to the list of disjuncts.
   ArrayRef<IntegerRelation> getAllDisjuncts() const;
+  MutableArrayRef<IntegerRelation> getAllDisjuncts();
 
   /// Return the disjunct at the specified index.
   const IntegerRelation &getDisjunct(unsigned index) const;
+  IntegerRelation &getDisjunct(unsigned index);
 
   /// Mutate this set, turning it into the union of this set and the given
   /// disjunct.

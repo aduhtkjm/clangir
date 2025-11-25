@@ -196,7 +196,7 @@ public:
 
   // Copy the cells in the intersection of
   // the rows between `fromRows` and `toRows` and
-  // the columns between `fromColumns` and `toColumns`, both inclusive.
+  // the columns between `fromColumns` (inclusive) and `toColumns` (exclusive).
   Matrix<T> getSubMatrix(unsigned fromRow, unsigned toRow, unsigned fromColumn,
                          unsigned toColumn) const;
 
@@ -233,6 +233,22 @@ public:
   /// The left shift operation (i.e. dstPos < srcPos) works in a similar way.
   void moveColumns(unsigned srcPos, unsigned num, unsigned dstPos);
 
+  // Pointwise addition.
+  Matrix<T> &operator+=(const Matrix<T> &other) {
+    assert(getNumColumns() == other.getNumColumns());
+    assert(getNumRows() == other.getNumRows());
+    for (unsigned i = 0; i < getNumRows(); i++) {
+      for (unsigned j = 0; j < getNumColumns(); j++)
+        at(i, j) += other(i, j);
+    }
+    return *this;
+  }
+
+  Matrix<T> operator+(const Matrix<T> &other) const {
+    Matrix<T> x = *this;
+    return x += other;
+  }
+  
 protected:
   /// The current number of rows, columns, and reserved columns. The underlying
   /// data vector is viewed as an nRows x nReservedColumns matrix, of which the
@@ -306,10 +322,6 @@ public:
   // M x M' = M'  M = det(M) x I.
   // Assert-fails if the matrix is not square.
   DynamicAPInt determinant(IntMatrix *inverse = nullptr) const;
-
-  // Pointwise addition.
-  IntMatrix &operator+=(const IntMatrix &other);
-  IntMatrix operator+(const IntMatrix &other) const;
 };
 
 // An inherited class for rational matrices, with no new data attributes.

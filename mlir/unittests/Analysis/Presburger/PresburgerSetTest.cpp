@@ -877,3 +877,11 @@ TEST(SetTest, subtractOutputSizeRegression) {
   // sets, which is correct, but bad for output size.
   EXPECT_EQ(subtractSelf.getNumDisjuncts(), 0u);
 }
+
+TEST(SetTest, subtract) {
+  PresburgerSet set1 = parsePresburgerSet({"(x) : (x - 2*(x floordiv 2) >= 0, -x + 2*(x floordiv 2) >= 0, x >= 0, -x + 10 >= 0)"});
+  PresburgerSet set2 = parsePresburgerSet({"(x) : (x >= 0, -x + 10 >= 0)"});
+  PresburgerSet set3 = parsePresburgerSet({"(x) : (x - 2*(x floordiv 2) == 1, x >= 0, -x + 10 >= 0)"});
+  EXPECT_FALSE(set2.subtract(set1).isIntegerEmpty());
+  EXPECT_TRUE(set2.subtract(set1).isEqual(set3));
+}

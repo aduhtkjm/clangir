@@ -9,16 +9,24 @@ using namespace affine;
 
 namespace {
 
-struct FindOffset : public FindOffsetBase<FindOffset> {
+class FindOffset : public FindOffsetBase<FindOffset> {
   using FindOffsetBase::FindOffsetBase;
 
   void runOnOperation() override;
   void findBaseInFunction(FuncOp func);
   void findOffsetInFunction(FuncOp func);
+private:
+  // The ID to distinguish bases.
+  unsigned id = 0;
+  ModuleOp module;
 };
 
 void FindOffset::runOnOperation() {
-  auto funcs = findAll<FuncOp>(getOperation());
+  module = cast<ModuleOp>(getOperation());
+  auto globals = findAll<GlobalOp>(module);
+  for (auto glob : globals)
+    setAttr<ArrayBaseAttr>(glob, glob->getContext(), id++);
+  auto funcs = findAll<FuncOp>(module);
   for (auto func : funcs) {
     findBaseInFunction(func);
     findOffsetInFunction(func);
@@ -47,8 +55,6 @@ unsigned markBase(PtrStrideOp stride) {
 }
 
 void FindOffset::findBaseInFunction(FuncOp func) {
-  // The ID to distinguish bases.
-  static unsigned id = 0;
   auto *ctx = func->getContext();
 
   // Mark allocas that represent arrays.
@@ -60,6 +66,16 @@ void FindOffset::findBaseInFunction(FuncOp func) {
 
     // This alloca holds an array.
     setAttr<ArrayBaseAttr>(alloca, ctx, id++);
+  }
+
+  // Also consider getglobals.
+  auto getglobals = findAll<GetGlobalOp>(func);
+  for (auto getglob : getglobals) {
+    auto symName = getglob.getName();
+    Operation *sym = module.lookupSymbol(symName);
+    GlobalOp global = cast<GlobalOp>(sym);
+    if (auto base = getAttr<ArrayBaseAttr>(global))
+      setAttr<ArrayBaseAttr>(getglob, ctx, base.getId());
   }
 
   // Also consider decays from pointer to array.
@@ -187,6 +203,21 @@ void FindOffset::findOffsetInFunction(FuncOp func) {
         auto index = calculateOffset(getelem.getIndex().getDefiningOp());
         if (base && index)
           return *base + *index;
+      }
+
+      if (auto binop = dyn_cast<BinOp>(op)) {
+        auto lhs = calculateOffset(binop.getLhs().getDefiningOp());
+        auto rhs = calculateOffset(binop.getRhs().getDefiningOp());
+        if (!lhs || !rhs)
+          return {};
+
+        switch (binop.getKind()) {
+        case BinOpKind::Mul: return *lhs * *rhs;
+        case BinOpKind::Add: return *lhs + *rhs;
+        case BinOpKind::Sub: return *lhs - *rhs;
+        default:
+          return {};
+        }
       }
 
       return {};

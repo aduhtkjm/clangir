@@ -112,6 +112,9 @@ GeneratingFunction computeUnimodularConeGeneratingFunction(ParamPoint vertex,
 /// If there is no solution, return null.
 std::optional<ParamPoint> solveParametricEquations(FracMatrix equations);
 
+/// Decomposes the given cone into unimodular cones.
+std::vector<std::pair<int, ConeH>> unimodularDecompose(const ConeH & tangentCone);
+
 /// Given a list of possibly intersecting regions (PresburgerSet) and the
 /// generating functions active in each region, produce a pairwise disjoint
 /// list of regions (chambers) and identify the generating function of the

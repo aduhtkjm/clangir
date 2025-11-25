@@ -21,12 +21,13 @@ using IntVector = llvm::SmallVector<llvm::DynamicAPInt>;
 namespace {
 
 // Matrix multiplication.
-IntMatrix matmul(const IntMatrix &a, const IntMatrix &b) {
+template<typename T>
+T matmul(const T &a, const T &b) {
   assert(a.getNumColumns() == b.getNumRows());
   unsigned n = a.getNumRows();
   unsigned m = b.getNumRows();
   unsigned p = b.getNumColumns();
-  IntMatrix result(n, p);
+  T result(n, p);
 
   for (unsigned i = 0; i < n; i++) {
     for (unsigned j = 0; j < m; j++) {
@@ -38,9 +39,44 @@ IntMatrix matmul(const IntMatrix &a, const IntMatrix &b) {
   return result;
 }
 
+template<typename T>
+[[nodiscard]] T hstack(T a, const T &b) {
+  assert(a.getNumRows() == b.getNumRows());
+  unsigned aCols = a.getNumColumns();
+  unsigned bCols = b.getNumColumns();
+  a.insertColumns(aCols, b.getNumColumns());
+  for (unsigned i = 0; i < a.getNumRows(); i++)
+    for (unsigned j = 0; j < bCols; j++)
+      a(i, aCols + j) = b(i, j);
+  return a;
+}
+
+FracMatrix asFracMatrix(const IntMatrix &a) {
+  unsigned rows = a.getNumRows();
+  unsigned cols = a.getNumColumns();
+  FracMatrix mat(rows, cols);
+  for (unsigned i = 0; i < rows; i++) {
+    for (unsigned j = 0; j < cols; j++)
+      mat(i, j) = a(i, j);
+  }
+  return mat;
+}
+
+IntMatrix asIntMatrix(const FracMatrix &a) {
+  unsigned rows = a.getNumRows();
+  unsigned cols = a.getNumColumns();
+  IntMatrix mat(rows, cols);
+  for (unsigned i = 0; i < rows; i++) {
+    for (unsigned j = 0; j < cols; j++)
+      mat(i, j) = a(i, j).getAsInteger();
+  }
+  return mat;
+}
+
 struct ParticularSolution {
   IntegerRelation constraint;
-  IntMatrix solution;
+  // Row i is an affine expression for the i'th variable.
+  FracMatrix solution;
 };
 
 ParticularSolution findParticularSolution(const IntMatrix &eqs, const IntMatrix &constants) {
@@ -70,7 +106,7 @@ ParticularSolution findParticularSolution(const IntMatrix &eqs, const IntMatrix 
   IntMatrix rhs = matmul(u, constants);
 
   // The result, in a form [y_B | y_C] that represents y_B p + y_C.
-  IntMatrix y(numCols, numRhsCols);
+  FracMatrix y(numCols, numRhsCols);
   SmallVector<unsigned> modIndex, eqIndex;
   for (unsigned i = 0; i < numRows; i++) {
     MutableArrayRef row = rhs.getRow(i);
@@ -79,24 +115,18 @@ ParticularSolution findParticularSolution(const IntMatrix &eqs, const IntMatrix 
     auto s = i >= numCols ? DynamicAPInt() : d(i, i);
 
     // (UBp + UC)_i is essentially (UB)[i, :] \cdot p + (UC)_i.
-    // If any of the entries aren't zero when s_i is zero, this implies an extra constraint.
     if (s == 0 && std::any_of(row.begin(), row.end(), [](const DynamicAPInt &x) { return x != 0; }))
       // This is an equality constraint, e.g. 0x + 3N - 6 == 0 implies N == 2.
       eqIndex.push_back(i);
 
-    // When s_i does not divide (UB)[i, j] or (UC)_i (it doesn't have the "strong division
-    // property"), we'll have a fractional y_i.
-    // However, as x and V^{-1} only have integers (the latter is by unimodularity),
-    // y = V^{-1}x should only contain integers if we want the polyhedron to be non-empty.
-    // for all values of p.
     if (s != 0 && std::any_of(row.begin(), row.end(), [&](const DynamicAPInt &x) { return x % s != 0; }))
       // This is a modular constraint, e.g. 2x + 3N - 5 == 0 implies (3N - 5) % 2 == 0.
       modIndex.push_back(i);
 
     // A constraint s_i y_i = (UB)[i, :] p + (UC)_i is found and must be enforced.
-    else if (s != 0) {
+    if (s != 0) {
       for (unsigned j = 0; j < numRhsCols; j++)
-        y(i, j) = rhs(i, j) / s;
+        y(i, j) = Fraction(rhs(i, j), s);
     }
   }
 
@@ -104,19 +134,8 @@ ParticularSolution findParticularSolution(const IntMatrix &eqs, const IntMatrix 
   unsigned numParams = numRhsCols - 1;
   unsigned numLocals = modIndex.size();
   unsigned dims = numParams + numLocals;
-  auto space = PresburgerSpace::getSetSpace(numParams, numLocals);
+  auto space = PresburgerSpace::getSetSpace(numParams, 0, numLocals);
   IntegerRelation constraints(space);
-
-  // Let's denote the div-locals as `z`. Then we're having Bp + Sz - C = 0.
-  // From a similar reasoning of `eliminateEqualities`, we can rewrite this as
-  //    p = Vq + p_0
-  // where V is the null space of [B | S] and p_0 is a particular solution to
-  // this (now non-parametric) system of equations.
-  // Then, we're having Ax = Bp + C = BVq + (Bp_0 + C).
-  //
-  // Now this always satisfies the "strong division property". Moreover,
-  // an integer solution of `x` in this system will also be an integer
-  // solution of `x` in the original system.
   
   // First, we'll create the constraints of `p`.
   for (auto i : eqIndex) {
@@ -134,65 +153,106 @@ ParticularSolution findParticularSolution(const IntMatrix &eqs, const IntMatrix 
     auto row = rhs.getRow(i);
     IntVector eq(dims + 1);
     std::copy(row.begin(), row.end() - 1, eq.begin());
-    // The divisor is in fact d(i, i), which is row[i].
-    const DynamicAPInt &divisor = row[i];
-    eq[numParams + j] = divisor;
+    // This is the divisor.
+    eq[numParams + j] = d(i, i);
     eq.back() = row.back();
     constraints.addEquality(eq);
   }
 
-  // If there is completely no parameters or no locals, then no further action
-  // is needed.
-  // As we've already got `y` and we've let y = V^{-1}x, we've obtained the
-  // solution.
-  if (numParams == 0 || numLocals == 0)
-    return { constraints, matmul(v, y) };
+  return { constraints, matmul(asFracMatrix(v), y) };
+}
 
-  // Otherwise, we must re-parameterize the constraints.
-  // Similar to the eliminateEqualities procedure below, we obtain the null
-  // space of B from its Hermite normal form.
-  //
-  // The procedure is very similar, so we don't repeat the explanations here.
-  // Note we're operating on `constants`, rather than `rhs`.
-  IntMatrix b = constants.getSubMatrix(0, numRows, 0, dims - 1);
-  IntMatrix c = constants.getSubMatrix(0, numRows, dims - 1, dims - 1);
+// The L_\infty-norm.
+Fraction infNorm(ArrayRef<Fraction> fracs) {
+  Fraction max = abs(fracs[0]);
+  for (const auto &x : fracs) {
+    if (max < abs(x))
+      max = abs(x);
+  }
+  return max;
+}
 
-  IntMatrix transpose = b.transpose();
-  auto [hnf, uB] = transpose.computeRowHermiteNormalForm();
-  unsigned rank = 0;
-  for (int i = 0, e = hnf.getNumRows(); i < e; i++) {
-    const auto &row = hnf.getRow(i);
-    bool hasNonZero = std::any_of(row.begin(), row.end(), [&](const DynamicAPInt &value) {
-      return value != 0;
-    });
-    if (hasNonZero)
-      rank++;
-    else
-      break;
+void normalize(IntMatrix &mat) {
+  llvm::DynamicAPInt gcd;
+  for (unsigned i = 0; i < mat.getNumRows(); i++) {
+    for (unsigned j = 0; j < mat.getNumColumns(); j++) {
+      gcd = llvm::gcd(gcd, abs(mat(i, j)));
+      if (gcd == 1)
+        return;
+    }
   }
   
-  if (rank >= numRows) {
-    // In this case, the parameter space has a unique solution.
-    llvm_unreachable("NYI: Full rank in elim");
+  for (unsigned i = 0; i < mat.getNumRows(); i++) {
+    for (unsigned j = 0; j < mat.getNumColumns(); j++)
+      mat(i, j) /= gcd;
+  }
+}
+
+// See https://math.ucdavis.edu/~deloera/researchsummary/barvinokalgorithm-latte1.pdf
+std::pair<IntVector, IntVector> getSamplePoint(const ConeV &cone) {
+  unsigned numRows = cone.getNumRows();
+  unsigned numCols = cone.getNumColumns();
+  IntMatrix adjugate(numRows, numCols);
+  auto det = cone.determinant(&adjugate);
+
+  // Use LLL to find a reduced basis, one that the generators' length are smaller.
+  if (det < 0) {
+    for (unsigned i = 0; i < adjugate.getNumRows(); i++)
+      adjugate.negateRow(i);
+  }
+  normalize(adjugate);
+  FracMatrix basis = asFracMatrix(adjugate);
+  basis.LLL(Fraction(3, 4));
+
+  IntMatrix transform = asIntMatrix(matmul(basis, asFracMatrix(cone)));
+  for (unsigned i = 0; i < numRows; i++)
+    transform.normalizeRow(i);
+
+  unsigned index = 0;
+  Fraction shortest = infNorm(basis.getRow(0));
+  for (unsigned i = 0; i < numRows; i++) {
+    Fraction norm = infNorm(basis.getRow(i));
+    if (norm < shortest) {
+      shortest = norm;
+      index = i;
+    }
   }
 
-  IntMatrix basis = u.getSubMatrix(rank, numRows - 1, 0, numRows - 1).transpose();
-  // There's no parameter at all, so the constraint is either empty or the universe.
-  // When the constraint is empty, there is no such parameter p that makes the solution
-  // exist. Therefore, we return a nowhere valid constraint.
-  auto [cp, solution] = findParticularSolution(b, c);
-  if (cp.isIntegerEmpty())
-    return { IntegerRelation::getEmpty(space), solution };
+  IntVector lambda;
+  lambda.reserve(numRows);
+  for (const auto &e : basis.getRow(index))
+    lambda.push_back(e.getAsInteger());
 
-  // Now substitute it back.
-  auto newB = matmul(b, basis);
-  auto newC = matmul(b, solution) + c;
-  IntMatrix newConstants = newB;
-  newConstants.insertColumn(newConstants.getNumColumns());
-  for (unsigned i = 0; i < newConstants.getNumRows(); i++)
-    newConstants(i, newConstants.getNumColumns() - 1) = newC(i, 0);
+  IntVector w(transform.getRow(index));
+  if (std::all_of(lambda.begin(), lambda.end(), [](const DynamicAPInt &x) { return x <= 0; })) {
+    for (auto &x : lambda)
+      x *= -1;
+    for (auto &x : w)
+      x *= -1;
+  }
+  return { w, lambda };
+}
 
-  return findParticularSolution(eqs, newConstants);
+std::vector<std::pair<int, ConeV>> unimodularDecomposeSimplicial(int sign, const ConeV &cone) {
+  if (getIndex(cone) == 1)
+    return { { sign, cone } };
+
+  std::vector<std::pair<int, ConeV>> cones;
+  auto [w, lambda] = getSamplePoint(cone);
+  // In V-representation, we store generators as rows in a matrix.
+  for (unsigned i = 0; i < cone.getNumRows(); i++) {
+    if (lambda[i] == 0)
+      continue;
+    int lSign = lambda[i] > 0 ? 1 : -1;
+    // The newly split cone is formed by replacing one ray into w.
+    IntMatrix mat = cone;
+    for (unsigned j = 0; j < cone.getNumColumns(); j++)
+      mat(i, j) = w[j];
+    assert(getIndex(mat) < getIndex(cone));
+    auto decomp = unimodularDecomposeSimplicial(sign * lSign, mat);
+    std::copy(decomp.begin(), decomp.end(), std::back_inserter(cones));
+  }
+  return cones;
 }
 
 } // namespace
@@ -257,8 +317,8 @@ std::pair<IntegerRelation, PolyhedronH> mlir::presburger::detail::eliminateEqual
   // `eqs` consists of [ A | -B ], as it is stored in "== 0" form.
   // We split it into two halves, `coeffs` (A) and `parameters + constants` (B).
   // Note that both ends are inclusive.
-  IntMatrix coeffs = eqs.getSubMatrix(0, m - 1, 0, n - 1);
-  IntMatrix constants = eqs.getSubMatrix(0, m - 1, n, n + p);
+  IntMatrix coeffs = eqs.getSubMatrix(0, m, 0, n);
+  IntMatrix constants = eqs.getSubMatrix(0, m, n, n + p + 1);
   // Flip constant sign, as mentioned above.
   for (unsigned i = 0; i < m; i++)
     constants.negateRow(i);
@@ -318,21 +378,23 @@ std::pair<IntegerRelation, PolyhedronH> mlir::presburger::detail::eliminateEqual
 
   // Strip the parameter and constant part.
   unsigned ineqRows = ineqs.getNumRows();
-  unsigned ineqCols = ineqs.getNumColumns();
-  assert(ineqCols == n + p + 1);
+  assert(ineqs.getNumColumns() == n + p + 1);
 
   // Find the particular solution as described above.
   auto [constraint, solution] = findParticularSolution(coeffs, constants); // n * (p + 1)
+  llvm::errs() << "constraint = "; constraint.dump();
+  llvm::errs() << "solution = "; solution.dump();
   if (constraint.isIntegerEmpty())
     return { IntegerRelation::getUniverse(paramSpace), PolyhedronH::getEmpty(poly.getSpace()) };
-  
+
   if (rank >= n) {
     // When the matrix is full-ranked, the kernel is empty.
     // In this case, Ax = Bp + C has a unique solution or none at all.
     assert(rank == n);
-    auto [constraint, solution] = findParticularSolution(coeffs, constants);
     // If there is no parameter, then don't care about parameter space.
-    if (p == 0)
+    // Moreover, if there is no inequality, there won't be extra constraints
+    // that they bring. Therefore we can directly return as well.
+    if (p == 0 || ineqRows == 0)
       return { constraint, PolyhedronH::getUniverse(PresburgerSpace::getSetSpace()) };
     
     // It isn't enough if we only have the constraints for Ax = Bp + C.
@@ -346,24 +408,29 @@ std::pair<IntegerRelation, PolyhedronH> mlir::presburger::detail::eliminateEqual
     // Then (DU + E)p + DV + F >= 0, which are new constraints of p.
     unsigned solRows = solution.getNumRows();
 
-    auto d = ineqs.getSubMatrix(0, ineqRows - 1, 0, n - 1);
-    auto e = ineqs.getSubMatrix(0, ineqRows - 1, n, n + p - 1);
-    auto f = ineqs.getSubMatrix(0, ineqRows - 1, n + p, n + p);
+    auto d = asFracMatrix(ineqs.getSubMatrix(0, ineqRows, 0, n));
+    auto e = asFracMatrix(ineqs.getSubMatrix(0, ineqRows, n, n + p));
+    auto f = asFracMatrix(ineqs.getSubMatrix(0, ineqRows, n + p, n + p + 1));
 
-    auto u = solution.getSubMatrix(0, solRows - 1, 0, p - 1);
-    auto v = solution.getSubMatrix(0, solRows - 1, p, p);
+    FracMatrix u = solution.getSubMatrix(0, solRows, 0, p);
+    FracMatrix v = solution.getSubMatrix(0, solRows, p, p + 1);
     
     auto coeffP = matmul(d, u) + e;
     auto constP = matmul(d, v) + f;
-    // Concatenate the matrices together.
-    coeffP.insertColumn(coeffP.getNumColumns());
-    for (unsigned i = 0; i < ineqRows; i++)
-      coeffP(i, coeffP.getNumColumns() - 1) = constP(i, 0);
+    coeffP = hstack(coeffP, constP);
 
     // The real constraint should be the intersection of both constraints,
     // one from the equalities and the other from the inequalities.
-    for (unsigned i = 0; i < ineqRows; i++)
-      constraint.addInequality(coeffP.getRow(i));
+    for (unsigned i = 0; i < ineqRows; i++) {
+      auto row = coeffP.getRow(i);
+      DynamicAPInt lcm(1);
+      for (const auto &elem : row)
+        lcm = llvm::lcm(lcm, elem.den);
+      IntVector ineq(p + 1);
+      for (unsigned i = 0; i < p + 1; i++)
+        ineq[i] = (row[i] * lcm).getAsInteger();
+      constraint.addInequality(ineq);
+    }
 
     // Returns a singleton set.
     return { constraint, PolyhedronH::getUniverse(PresburgerSpace::getSetSpace()) };
@@ -371,28 +438,30 @@ std::pair<IntegerRelation, PolyhedronH> mlir::presburger::detail::eliminateEqual
 
   // We transpose because we want the column vectors to form the basis,
   // rather than row vectors.
-  IntMatrix basis = u.getSubMatrix(rank, n - 1, 0, n - 1).transpose();
-  auto ineqCoeffs = ineqs.getSubMatrix(0, ineqRows - 1, 0, n - 1);
-  IntMatrix rhs = matmul(ineqCoeffs, solution);
-  IntMatrix newCoeffs = matmul(ineqCoeffs, basis);
+  FracMatrix basis = asFracMatrix(u.getSubMatrix(rank, n, 0, n).transpose());
+  auto ineqCoeffs = asFracMatrix(ineqs.getSubMatrix(0, ineqRows, 0, n));
+  FracMatrix rhs = matmul(ineqCoeffs, solution);
+  FracMatrix newCoeffs = matmul(ineqCoeffs, basis);
 
   // Add a new column for the constants, and calculate the value.
   // Be careful that `ineqCoeffs` has fewer columns after the matmul.
-  auto before = ineqs.getSubMatrix(0, ineqRows - 1, n, ineqCols - 1);
+  auto before = asFracMatrix(ineqs.getSubMatrix(0, ineqRows, n, n + p + 1));
   rhs += before;
-  // Concatenate (horizontally stack) rhs after ineqCoeffs.
-  unsigned newCols = newCoeffs.getNumColumns();
-  newCoeffs.insertColumns(newCols, p + 1);
-  for (unsigned i = 0; i < ineqRows; i++) {
-    for (unsigned j = 0; j < p + 1; j++)
-      newCoeffs(i, j + newCols) = rhs(i, j);
-  }
+  newCoeffs = hstack(newCoeffs, rhs);
 
   auto numVars = newCoeffs.getNumColumns() - 1;
   auto space = PresburgerSpace::getSetSpace(numVars - p, p);
   auto resultPoly = PolyhedronH(ineqRows, 0, numVars + 1, space);
-  for (unsigned i = 0; i < ineqRows; i++)
-    resultPoly.addInequality(newCoeffs.getRow(i));
+  for (unsigned i = 0; i < ineqRows; i++) {
+    auto row = newCoeffs.getRow(i);
+    DynamicAPInt lcm(1);
+    for (const auto &elem : row)
+      lcm = llvm::lcm(lcm, elem.den);
+    IntVector ineq(numVars + 1);
+    for (unsigned i = 0; i < numVars + 1; i++)
+      ineq[i] = (row[i] * lcm).getAsInteger();
+    resultPoly.addInequality(ineq);
+  }
   resultPoly.simplify();
   return { constraint, resultPoly };
 }
@@ -401,8 +470,7 @@ static IntMatrix getAffineHull(const PolyhedronH &poly) {
   IntMatrix mat(0, poly.getNumCols());
   Simplex simplex(poly);
   for (unsigned i = 0, e = poly.getNumInequalities(); i < e; i++) {
-    const auto &eq = poly.getInequality(i);
-    DynamicAPInt constant = eq.back();
+    const auto &ineq = poly.getInequality(i);
     auto maybeMinimum = simplex.computeOptimum(Simplex::Direction::Down, poly.getInequality(i));
     auto maybeMaximum = simplex.computeOptimum(Simplex::Direction::Up, poly.getInequality(i));
     if (!maybeMinimum.isBounded() || !maybeMaximum.isBounded())
@@ -412,13 +480,14 @@ static IntMatrix getAffineHull(const PolyhedronH &poly) {
     if (minimum == maximum && minimum == 0) {
       mat.insertRow(mat.getNumRows());
       auto row = mat.getRow(mat.getNumRows() - 1);
-      std::copy(eq.begin(), eq.end(), row.begin());
+      std::copy(ineq.begin(), ineq.end(), row.begin());
     }
   }
   return mat;
 }
 
 std::pair<IntegerRelation, PolyhedronH> mlir::presburger::detail::projectToFullDimension(PolyhedronH poly) {
+  poly.simplify();
   auto affineHull = getAffineHull(poly);
   if (affineHull.getNumRows() == 0 && poly.getNumEqualities() == 0) {
     auto paramSpace = PresburgerSpace::getSetSpace(poly.getNumSymbolVars());
@@ -429,7 +498,14 @@ std::pair<IntegerRelation, PolyhedronH> mlir::presburger::detail::projectToFullD
     poly.addEquality(affineHull.getRow(i));
 
   poly.simplify();
-  return eliminateEqualities(poly);
+  poly.removeTrivialRedundancy();
+  llvm::errs() << "eliminating:\n"; poly.dump();
+  auto result = eliminateEqualities(poly);
+  if (getAffineHull(poly).getNumRows() != 0) {
+    auto [constraint, r] = projectToFullDimension(result.second);
+    return { constraint.intersect(result.first), r };
+  }
+  return result;
 }
 
 /// Assuming that the input cone is pointed at the origin,
@@ -450,6 +526,7 @@ ConeV mlir::presburger::detail::getDual(ConeH cone) {
     for (unsigned j = 0; j < numVar; ++j) {
       dual.at(i, j) = cone.atIneq(i, j);
     }
+    dual.normalizeRow(i);
   }
 
   // Now dual is of the form [ [a1, ..., an] , ... ]
@@ -481,7 +558,7 @@ DynamicAPInt mlir::presburger::detail::getIndex(const ConeV &cone) {
   if (cone.getNumRows() > cone.getNumColumns())
     return DynamicAPInt(0);
 
-  return cone.determinant();
+  return abs(cone.determinant());
 }
 
 /// Compute the generating function for a unimodular cone.
@@ -502,7 +579,7 @@ mlir::presburger::detail::computeUnimodularConeGeneratingFunction(
   //                                       [-1 -1/2 1]
 
   // `cone` must be unimodular.
-  assert(abs(getIndex(getDual(cone))) == 1 && "input cone is not unimodular!");
+  assert(getIndex(getDual(cone)) == 1 && "input cone is not unimodular!");
 
   unsigned numVar = cone.getNumVars();
   unsigned numIneq = cone.getNumInequalities();
@@ -540,7 +617,7 @@ mlir::presburger::detail::computeUnimodularConeGeneratingFunction(
   // Thus we store the (exponent of the) numerator as the affine function -Λ,
   // since the generators u_i are already stored as the exponent of the
   // denominator. Note that the outer -1 will have to be accounted for, as it is
-  // not stored. See end for an example.
+  // not stored. We will insert the negation in substituteMuInTerm().
 
   unsigned numColumns = vertex.getNumColumns();
   unsigned numRows = vertex.getNumRows();
@@ -584,9 +661,9 @@ mlir::presburger::detail::solveParametricEquations(FracMatrix equations) {
 
   // If the determinant is zero, there is no unique solution.
   // Thus we return null.
-  if (FracMatrix(equations.getSubMatrix(/*fromRow=*/0, /*toRow=*/d - 1,
+  if (FracMatrix(equations.getSubMatrix(/*fromRow=*/0, /*toRow=*/d,
                                         /*fromColumn=*/0,
-                                        /*toColumn=*/d - 1))
+                                        /*toColumn=*/d))
           .determinant() == 0)
     return std::nullopt;
 
@@ -635,10 +712,30 @@ mlir::presburger::detail::solveParametricEquations(FracMatrix equations) {
   //
   // We copy these columns and return them.
   ParamPoint vertex =
-      equations.getSubMatrix(/*fromRow=*/0, /*toRow=*/d - 1,
-                             /*fromColumn=*/d, /*toColumn=*/numCols - 1);
+      equations.getSubMatrix(/*fromRow=*/0, /*toRow=*/d,
+                             /*fromColumn=*/d, /*toColumn=*/numCols);
   vertex.negateMatrix();
   return vertex;
+}
+
+std::vector<std::pair<int, ConeH>> mlir::presburger::detail::unimodularDecompose(const ConeH &tangentCone) {
+  auto dual = getDual(tangentCone);
+  DynamicAPInt index = getIndex(dual);
+  if (index == 0)
+    llvm_unreachable("should have been prevented by eliminateEqualities()");
+
+  // The cone is already unimodular and needs no further decomposition.
+  if (index == 1)
+    return { { 1, tangentCone } };
+
+  auto cones = unimodularDecomposeSimplicial(1, dual);
+  std::vector<std::pair<int, ConeH>> result;
+  result.reserve(cones.size());
+
+  for (const auto &[sign, conev] : cones)
+    result.emplace_back(sign, getDual(conev));
+  
+  return result;
 }
 
 /// This is an implementation of the Clauss-Loechner algorithm for chamber
@@ -763,23 +860,22 @@ mlir::presburger::detail::computePolytopeGeneratingFunction(
     FracMatrix a2(numIneqs - numVars, numVars);
     FracMatrix b2c2(numIneqs - numVars, numSymbols + 1);
     a2 = FracMatrix(
-        remainder.getSubMatrix(0, numIneqs - numVars - 1, 0, numVars - 1));
-    b2c2 = FracMatrix(remainder.getSubMatrix(0, numIneqs - numVars - 1, numVars,
-                                             numVars + numSymbols));
-
+        remainder.getSubMatrix(0, numIneqs - numVars, 0, numVars));
+    b2c2 = FracMatrix(remainder.getSubMatrix(0, numIneqs - numVars, numVars,
+                                             numVars + numSymbols + 1));
     // Find the vertex, if any, corresponding to the current subset of
     // inequalities.
-    std::optional<ParamPoint> vertex =
+    std::optional<ParamPoint> maybeVertex =
         solveParametricEquations(FracMatrix(subset)); // d x (p+1)
 
-    if (!vertex)
+    if (!maybeVertex)
       continue;
+    auto vertex = *maybeVertex;
     if (llvm::is_contained(vertices, vertex))
       continue;
     // If this subset corresponds to a vertex that has not been considered,
     // store it.
-    vertices.emplace_back(*vertex);
-
+    vertices.emplace_back(vertex);
     // If a vertex is formed by the intersection of more than d facets, we
     // assume that any d-subset of these facets can be solved to obtain its
     // expression. This assumption is valid because, if the vertex has two
@@ -810,7 +906,7 @@ mlir::presburger::detail::computePolytopeGeneratingFunction(
     // and add each row of [B2 | c2].
     FracMatrix activeRegion(numIneqs - numVars, numSymbols + 1);
     for (unsigned i = 0; i < numIneqs - numVars; i++) {
-      activeRegion.setRow(i, vertex->preMultiplyWithRow(a2.getRow(i)));
+      activeRegion.setRow(i, vertex.preMultiplyWithRow(a2.getRow(i)));
       activeRegion.addToRow(i, b2c2.getRow(i), 1);
     }
 
@@ -827,6 +923,7 @@ mlir::presburger::detail::computePolytopeGeneratingFunction(
     // as the generating function only depends on these.
     // We translate the cones to be pointed at the origin by making the
     // constant terms zero.
+
     ConeH tangentCone = defineHRep(numVars);
     for (unsigned j = 0, e = subset.getNumRows(); j < e; ++j) {
       SmallVector<DynamicAPInt> ineq(numVars + 1);
@@ -834,17 +931,13 @@ mlir::presburger::detail::computePolytopeGeneratingFunction(
         ineq[k] = subset(j, k);
       tangentCone.addInequality(ineq);
     }
-    // We assume that the tangent cone is unimodular, so there is no need
-    // to decompose it.
-    //
-    // In the general case, the unimodular decomposition may have several
-    // cones.
+
     GeneratingFunction vertexGf(numSymbols, {}, {}, {});
-    SmallVector<std::pair<int, ConeH>, 4> unimodCones = {{1, tangentCone}};
+    std::vector<std::pair<int, ConeH>> unimodCones = unimodularDecompose(tangentCone);
     for (const std::pair<int, ConeH> &signedCone : unimodCones) {
       auto [sign, cone] = signedCone;
-      vertexGf = vertexGf +
-                 computeUnimodularConeGeneratingFunction(*vertex, sign, cone);
+      auto gf = computeUnimodularConeGeneratingFunction(vertex, sign, cone);
+      vertexGf = vertexGf + gf;
     }
     // We store the vertex we computed with the generating function of its
     // tangent cone.
@@ -1111,6 +1204,7 @@ mlir::presburger::detail::computeNumTerms(const GeneratingFunction &gf) {
   // zero. Hence we find a vector μ that is not orthogonal to any of the
   // d_{ij} and substitute x accordingly.
   std::vector<Point> allDenominators;
+  llvm::errs() << "compute num terms of "; gf.dump(); llvm::errs() << "\n";
   for (ArrayRef<Point> den : gf.getDenominators())
     llvm::append_range(allDenominators, den);
   Point mu = getNonOrthogonalVector(allDenominators);
@@ -1182,6 +1276,7 @@ mlir::presburger::detail::computeNumTerms(const GeneratingFunction &gf) {
     eachTermDenCoefficients.reserve(r);
     for (const Fraction &den : dens) {
       singleTermDenCoefficients = getBinomialCoefficients(den + 1, den + 1);
+      llvm::errs() << "coeff = "; llvm::interleaveComma(singleTermDenCoefficients, llvm::errs()); llvm::errs() << "\n";
       eachTermDenCoefficients.emplace_back(
           ArrayRef<Fraction>(singleTermDenCoefficients).drop_front());
     }
@@ -1201,6 +1296,7 @@ mlir::presburger::detail::computeNumTerms(const GeneratingFunction &gf) {
                         QuasiPolynomial(numParams, sign);
   }
 
+  llvm::errs() << "success\n";
   return totalTerm.simplify();
 }
 
@@ -1246,6 +1342,7 @@ void obtainRegions(const PresburgerRelation &rel, const PolyhedronH &current, Sm
     // constraint into consideration.
     auto [c, projected] = projectToFullDimension(current);
     PresburgerRelation constraint(c);
+    llvm::errs() << "projected: "; projected.dump();
 
     // A singleton set.
     if (projected.getNumVars() == 0) {
@@ -1315,7 +1412,7 @@ mlir::presburger::detail::countIntegerPoints(const PresburgerRelation &rel) {
     refinement.swap(nextRef);
   }
 
-  // Now refinement is a list of pairwise-disjoint (up to lower-dim) chambers.
+  // Now refinement is a list of pairwise-disjoint chambers.
   // For each refinement chamber, collect contributions and sum quasi-polynomials.
   std::vector<std::pair<PresburgerRelation, QuasiPolynomial>> result;
   for (const PresburgerRelation &chamber : refinement) {

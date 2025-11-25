@@ -138,8 +138,9 @@ QuasiPolynomial QuasiPolynomial::simplify() {
     for (ArrayRef<Fraction> term : affine[i]) {
       bool allCoeffsZero = llvm::all_of(
           term.slice(0, numParam), [](const Fraction &c) { return c == 0; });
+      // Remember that we have a floor outside the affine function.
       if (allCoeffsZero)
-        newCoeff *= term[numParam];
+        newCoeff *= floor(term[numParam]);
       else
         newAffineTerm.emplace_back(term);
     }

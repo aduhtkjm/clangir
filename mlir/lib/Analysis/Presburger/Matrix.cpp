@@ -385,13 +385,13 @@ Matrix<T> Matrix<T>::getSubMatrix(unsigned fromRow, unsigned toRow,
                                   unsigned fromColumn,
                                   unsigned toColumn) const {
   assert(fromRow <= toRow && "end of row range must be after beginning!");
-  assert(toRow < nRows && "end of row range out of bounds!");
+  assert(toRow <= nRows && "end of row range out of bounds!");
   assert(fromColumn <= toColumn &&
          "end of column range must be after beginning!");
-  assert(toColumn < nColumns && "end of column range out of bounds!");
-  Matrix<T> subMatrix(toRow - fromRow + 1, toColumn - fromColumn + 1);
-  for (unsigned i = fromRow; i <= toRow; ++i)
-    for (unsigned j = fromColumn; j <= toColumn; ++j)
+  assert(toColumn <= nColumns && "end of column range out of bounds!");
+  Matrix<T> subMatrix(toRow - fromRow, toColumn - fromColumn);
+  for (unsigned i = fromRow; i < toRow; ++i)
+    for (unsigned j = fromColumn; j < toColumn; ++j)
       subMatrix(i - fromRow, j - fromColumn) = at(i, j);
   return subMatrix;
 }
@@ -692,20 +692,6 @@ DynamicAPInt IntMatrix::determinant(IntMatrix *inverse) const {
       inverse->at(i, j) = (fracInverse.at(i, j) * detM).getAsInteger();
 
   return detM;
-}
-
-IntMatrix &IntMatrix::operator+=(const IntMatrix &other) {
-  assert(getNumColumns() == other.getNumColumns() && getNumRows() == other.getNumRows());
-  for (unsigned i = 0; i < getNumRows(); i++) {
-    for (unsigned j = 0; j < getNumColumns(); j++)
-      at(i, j) += other(i, j);
-  }
-  return *this;
-}
-
-IntMatrix IntMatrix::operator+(const IntMatrix &other) const {
-  IntMatrix x = *this;
-  return x += other;
 }
 
 FracMatrix FracMatrix::identity(unsigned dimension) {
