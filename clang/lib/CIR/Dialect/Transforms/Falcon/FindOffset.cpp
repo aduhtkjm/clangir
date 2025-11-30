@@ -31,6 +31,7 @@ void FindOffset::runOnOperation() {
     findBaseInFunction(func);
     findOffsetInFunction(func);
   }
+  module.dump();
 }
 
 unsigned markBase(PtrStrideOp stride) {
@@ -199,10 +200,18 @@ void FindOffset::findOffsetInFunction(FuncOp func) {
       }
 
       if (auto getelem = dyn_cast<GetElementOp>(op)) {
-        auto base = calculateOffset(getelem.getBase().getDefiningOp());
+        auto baseop = getelem.getBase();
+        auto base = calculateOffset(baseop.getDefiningOp());
         auto index = calculateOffset(getelem.getIndex().getDefiningOp());
+        // Consider the base size.
+        auto type = getelem->getResultTypes()[0];
+        auto ground = cast<PointerType>(type).getPointee();
+        unsigned size = 1;
+        if (auto arr = dyn_cast<ArrayType>(ground))
+          size = arr.getSize();
+        
         if (base && index)
-          return *base + *index;
+          return *base + *index * size;
       }
 
       if (auto binop = dyn_cast<BinOp>(op)) {

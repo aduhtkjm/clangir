@@ -259,8 +259,14 @@ std::vector<std::pair<int, ConeV>> unimodularDecomposeSimplicial(int sign, const
 
 std::pair<IntegerRelation, PolyhedronH> mlir::presburger::detail::eliminateEqualities(const PolyhedronH &poly) {
   auto paramSpace = PresburgerSpace::getSetSpace(poly.getNumSymbolVars());
-  if (poly.getNumEqualities() == 0)
-    return { IntegerRelation::getUniverse(paramSpace), poly };
+  if (poly.getNumEqualities() == 0) {
+    // We have to convert all div-locals into range variables, for other procedures
+    // to work correctly.
+    auto copy = poly;
+    copy.convertVarKind(VarKind::Local, 0, poly.getNumLocalVars(), VarKind::Range);
+    return { IntegerRelation::getUniverse(paramSpace), copy };
+  }
+
   // Divlocals are unique and hence doesn't need special treatment.
   // They can be just viewed as normal variables.
   assert(poly.hasOnlyDivLocals());
@@ -382,8 +388,6 @@ std::pair<IntegerRelation, PolyhedronH> mlir::presburger::detail::eliminateEqual
 
   // Find the particular solution as described above.
   auto [constraint, solution] = findParticularSolution(coeffs, constants); // n * (p + 1)
-  llvm::errs() << "constraint = "; constraint.dump();
-  llvm::errs() << "solution = "; solution.dump();
   if (constraint.isIntegerEmpty())
     return { IntegerRelation::getUniverse(paramSpace), PolyhedronH::getEmpty(poly.getSpace()) };
 
@@ -426,7 +430,7 @@ std::pair<IntegerRelation, PolyhedronH> mlir::presburger::detail::eliminateEqual
       DynamicAPInt lcm(1);
       for (const auto &elem : row)
         lcm = llvm::lcm(lcm, elem.den);
-      IntVector ineq(p + 1);
+      IntVector ineq(p + constraint.getNumLocalVars() + 1);
       for (unsigned i = 0; i < p + 1; i++)
         ineq[i] = (row[i] * lcm).getAsInteger();
       constraint.addInequality(ineq);
@@ -491,6 +495,7 @@ std::pair<IntegerRelation, PolyhedronH> mlir::presburger::detail::projectToFullD
   auto affineHull = getAffineHull(poly);
   if (affineHull.getNumRows() == 0 && poly.getNumEqualities() == 0) {
     auto paramSpace = PresburgerSpace::getSetSpace(poly.getNumSymbolVars());
+    poly.convertVarKind(VarKind::Local, 0, poly.getNumLocalVars(), VarKind::Range);
     return { IntegerRelation::getUniverse(paramSpace), poly };
   }
 
@@ -499,9 +504,8 @@ std::pair<IntegerRelation, PolyhedronH> mlir::presburger::detail::projectToFullD
 
   poly.simplify();
   poly.removeTrivialRedundancy();
-  llvm::errs() << "eliminating:\n"; poly.dump();
   auto result = eliminateEqualities(poly);
-  if (getAffineHull(poly).getNumRows() != 0) {
+  if (getAffineHull(result.second).getNumRows() != 0) {
     auto [constraint, r] = projectToFullDimension(result.second);
     return { constraint.intersect(result.first), r };
   }
@@ -523,9 +527,9 @@ ConeV mlir::presburger::detail::getDual(ConeH cone) {
   for (auto i : llvm::seq<int>(0, numIneq)) {
     assert(cone.atIneq(i, numVar) == 0 &&
            "H-representation of cone is not centred at the origin!");
-    for (unsigned j = 0; j < numVar; ++j) {
+    for (unsigned j = 0; j < numVar; ++j)
       dual.at(i, j) = cone.atIneq(i, j);
-    }
+
     dual.normalizeRow(i);
   }
 
@@ -588,7 +592,12 @@ mlir::presburger::detail::computeUnimodularConeGeneratingFunction(
   // transpose of its inequality matrix, `cone`.
   // The last column of the inequality matrix is null,
   // so we remove it to obtain a square matrix.
-  FracMatrix transp = FracMatrix(cone.getInequalities()).transpose();
+  //
+  // We must also normalize each inequality of the cone. This is done
+  // in the simplify() call.
+  auto normalizedCone = cone;
+  normalizedCone.simplify();
+  FracMatrix transp = FracMatrix(normalizedCone.getInequalities()).transpose();
   transp.removeRow(numVar);
 
   FracMatrix generators(numVar, numIneq);
@@ -1204,7 +1213,6 @@ mlir::presburger::detail::computeNumTerms(const GeneratingFunction &gf) {
   // zero. Hence we find a vector μ that is not orthogonal to any of the
   // d_{ij} and substitute x accordingly.
   std::vector<Point> allDenominators;
-  llvm::errs() << "compute num terms of "; gf.dump(); llvm::errs() << "\n";
   for (ArrayRef<Point> den : gf.getDenominators())
     llvm::append_range(allDenominators, den);
   Point mu = getNonOrthogonalVector(allDenominators);
@@ -1276,7 +1284,6 @@ mlir::presburger::detail::computeNumTerms(const GeneratingFunction &gf) {
     eachTermDenCoefficients.reserve(r);
     for (const Fraction &den : dens) {
       singleTermDenCoefficients = getBinomialCoefficients(den + 1, den + 1);
-      llvm::errs() << "coeff = "; llvm::interleaveComma(singleTermDenCoefficients, llvm::errs()); llvm::errs() << "\n";
       eachTermDenCoefficients.emplace_back(
           ArrayRef<Fraction>(singleTermDenCoefficients).drop_front());
     }
@@ -1296,7 +1303,6 @@ mlir::presburger::detail::computeNumTerms(const GeneratingFunction &gf) {
                         QuasiPolynomial(numParams, sign);
   }
 
-  llvm::errs() << "success\n";
   return totalTerm.simplify();
 }
 
@@ -1342,7 +1348,6 @@ void obtainRegions(const PresburgerRelation &rel, const PolyhedronH &current, Sm
     // constraint into consideration.
     auto [c, projected] = projectToFullDimension(current);
     PresburgerRelation constraint(c);
-    llvm::errs() << "projected: "; projected.dump();
 
     // A singleton set.
     if (projected.getNumVars() == 0) {
@@ -1387,7 +1392,9 @@ mlir::presburger::detail::countIntegerPoints(const PresburgerRelation &rel) {
   std::vector<Region> records;
   SmallVector<unsigned> active;
   auto universe = IntegerRelation::getUniverse(rel.getSpace());
+  llvm::errs() << "rel size = " << rel.getNumDisjuncts() << "\n";
   obtainRegions(rel, universe, active, 0, records);
+  llvm::errs() << "finished\n";
 
   unsigned numParams = rel.getNumSymbolVars();
   auto paramSpace = PresburgerSpace::getSetSpace(numParams);

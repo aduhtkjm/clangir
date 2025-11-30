@@ -30,6 +30,7 @@ struct ComputeDeps : public ComputeDepsBase<ComputeDeps> {
   void countCapacityMisses(const PresburgerRelation &domain, DenseMap<Operation *, std::vector<PresburgerRelation>> &instances);
 
   PresburgerRelation getDeps(GetElementOp sink, GetElementOp dep);
+  llvm::SmallVector<GetElementOp> findRelevant();
 private:
   // For two operations S and T,
   // lexIndex[S] < lexIndex[T] iff. S is lexically before T in the IR.
@@ -259,6 +260,33 @@ DynamicAPInt countIntPointsWithoutParameters(const PresburgerRelation &rel) {
   return value.getAsInteger();
 }
 
+void enumerateFeasiblePoints(const IntegerRelation &rel, std::set<std::vector<DynamicAPInt>> &result, std::vector<DynamicAPInt> &current) {
+  unsigned varId = current.size();
+  if (varId == rel.getNumRangeVars()) {
+    // Test feasibility for local variables.
+    if (!rel.isIntegerEmpty())
+      result.insert(current);
+    return;
+  }
+
+  auto lb = rel.getConstantBound(BoundType::LB, varId);
+  auto ub = rel.getConstantBound(BoundType::UB, varId);
+  if (!lb || !ub)
+    assert(false && "the region should be bounded!");
+
+  for (DynamicAPInt x = *lb; x <= *ub; x += 1) {
+    auto copy = rel;
+    std::vector<DynamicAPInt> eq(rel.getNumVars() + 1);
+    eq[varId] = 1;
+    eq.back() = -x;
+    copy.addEquality(eq);
+
+    current.push_back(x);
+    enumerateFeasiblePoints(copy, result, current);
+    current.pop_back();
+  }
+}
+
 void ComputeDeps::markLexicalOrder() {
   unsigned id = 1;
   getOperation()->walk([&](GetElementOp op) {
@@ -300,6 +328,9 @@ void ComputeDeps::addLexLess(PresburgerRelation &rel, IntegerRelation base,
 
       // Otherwise, no instance of `dep` is lexicographically smaller
       // than sink, and we need to do nothing.
+      // Special case: if i==0, then `rel` should be set to empty.
+      else if (i == 0)
+        rel = PresburgerRelation::getEmpty(rel.getSpace());
       
       // In both cases, there's no need to add further constraints.
       break;
@@ -386,6 +417,24 @@ int getDimension(GetElementOp sink) {
 
 AffineMap getMap(GetElementOp sink) {
   return getAttr<ArrayOffsetAttr>(sink).getMap();
+}
+
+llvm::SmallVector<GetElementOp> ComputeDeps::findRelevant() {
+  auto *module = getOperation();
+  llvm::SmallVector<GetElementOp> result;
+  auto loads = findAll<LoadOp>(module);
+  for (auto load : loads) {
+    auto *base = load.getAddr().getDefiningOp();
+    if (auto gep = dyn_cast<GetElementOp>(base))
+      result.push_back(gep);
+  }
+  auto stores = findAll<StoreOp>(module);
+  for (auto store : stores) {
+    auto *base = store.getAddr().getDefiningOp();
+    if (auto gep = dyn_cast<GetElementOp>(base))
+      result.push_back(gep);
+  }
+  return result;
 }
 
 PresburgerRelation ComputeDeps::getDeps(GetElementOp sink, GetElementOp dep) {
@@ -650,7 +699,6 @@ void ComputeDeps::runOnSink(GetElementOp sink) {
   // Now, for each chamber of `deps`, we want to get the number of instances
   // between `sink(p)` and `deps(sink(p))`.
   // To do this, we enumerate statements between them.
-  llvm::errs() << "sink = "; sink.dump();
   for (const auto &piece : deps.getAllPieces()) {
     if (piece.domain.isIntegerEmpty())
       continue;
@@ -658,8 +706,6 @@ void ComputeDeps::runOnSink(GetElementOp sink) {
     auto domain = piece.domain.simplify();
     auto output = piece.output;
     unsigned locals = output.getNumDivs();
-    llvm::errs() << "domain = "; domain.dump();
-    llvm::errs() << "output = "; output.dump();
     
     
     // First, extract the index values from `piece.output`.
@@ -769,52 +815,55 @@ void ComputeDeps::runOnSink(GetElementOp sink) {
       // contains division.
       unsigned depth = findCommonLoopDepth(u, dep);
       unsigned depDims = getLoopBounds(dep)->size();
-      unsigned dims = uDims + srcDims + locals;
       auto reuseInstance = PresburgerRelation::getEmpty(space);
       if (locals > 0) {
         // Add new locals to `base`. These are specified by DivisionRepr of output.
         const auto &divrepr = output.getDivs();
+        base.insertVarInPlace(VarKind::Local, 0);
         for (unsigned i = 0; i < locals; i++) {
           // This consists of `srcDims` domain variables, plus `domainLocal` local variables.
           auto dividend = divrepr.getDividend(i);
           auto denom = divrepr.getDenom(i);
           assert(dividend.size() == srcDims + locals + 1);
 
-          IntegerRelation constraint(PresburgerSpace::getRelationSpace(srcDims, uDims, 0, locals));
-
           // Add the lower bound.
-          SmallVector<DynamicAPInt, 4> lower(dims + 1);
-          // Domain variables should be placed at beginning.
-          for (unsigned j = 0; j < srcDims; j++)
-            lower[j] = -dividend[j];
-          // Local variables should be placed after range ones.
-          for (unsigned j = srcDims; j < srcDims + locals; j++)
-            lower[j + uDims] = -dividend[j];
-          // Constant is at back.
-          lower.back() = -dividend.back() + denom - 1;
-          
-          lower[i + srcDims + uDims] = denom;
-          constraint.addInequality(lower);
+          for (auto &disjunct : base.getAllDisjuncts()) {
+            SmallVector<DynamicAPInt, 4> lower(disjunct.getNumVars() + 1);
+            // Domain variables should be placed at beginning.
+            for (unsigned j = 0; j < srcDims; j++)
+              lower[j] = -dividend[j];
+            // Local variables should be placed after range ones.
+            for (unsigned j = srcDims; j < srcDims + locals; j++)
+              lower[j + uDims] = -dividend[j];
+            // Constant is at back.
+            lower.back() = -dividend.back() + denom - 1;
+            
+            lower[i + srcDims + uDims] = denom;
+            disjunct.addInequality(lower);
+          }
 
           // Add the upper bound.
-          SmallVector<DynamicAPInt, 4> upper(dims + 1);
-          for (unsigned j = 0; j < srcDims; j++)
-            upper[j] = dividend[j];
-          for (unsigned j = srcDims; j < srcDims + locals; j++)
-            upper[j + uDims] = dividend[j];
-          upper.back() = dividend.back();
           
-          upper[i + srcDims + uDims] = -denom;
-          constraint.addInequality(upper);
-
-          base = base.intersect(PresburgerRelation(constraint));
+          for (auto &disjunct : base.getAllDisjuncts()) {
+            SmallVector<DynamicAPInt, 4> upper(disjunct.getNumVars() + 1);
+            for (unsigned j = 0; j < srcDims; j++)
+              upper[j] = dividend[j];
+            for (unsigned j = srcDims; j < srcDims + locals; j++)
+              upper[j + uDims] = dividend[j];
+            upper.back() = dividend.back();
+            
+            upper[i + srcDims + uDims] = -denom;
+            disjunct.addInequality(upper);
+          }
         }
       }
 
       for (unsigned i = 0; i < std::max(uDims, depDims); i++) {
         if (i >= depth) {
-          if (lexIndex[dep] < lexIndex[sink])
+          if (lexIndex[dep] < lexIndex[u])
             reuseInstance.unionInPlace(base);
+          else if (i == 0)
+            reuseInstance = PresburgerRelation::getEmpty(reuseInstance.getSpace());
           break;
         }
 
@@ -828,10 +877,9 @@ void ComputeDeps::runOnSink(GetElementOp sink) {
           // They should be placed to the dimensions of s, which are the dimensions at front.
           for (unsigned j = 0; j < srcDims; j++)
             ineq[j] = -d[i][j];
-          // The rest are locals. They should be placed after ranges, and locals that already exist.
-          unsigned existing = disjunct.getNumLocalVars() - locals;
+          // The rest are locals. They should be placed after ranges, and before locals that already exist.
           for (unsigned j = srcDims; j < d[i].size() - 1; j++)
-            ineq[j + uDims + existing] = -d[i][j];
+            ineq[j + uDims] = -d[i][j];
           // The constant term should always be placed at back.
           ineq.back() -= d[i].back();
 
@@ -847,14 +895,21 @@ void ComputeDeps::runOnSink(GetElementOp sink) {
           IntVector eq(disjunct.getNumVars() + 1);
           for (unsigned j = 0; j < srcDims; j++)
             eq[j] = d[i][j];
-          unsigned existing = disjunct.getNumLocalVars() - locals;
           for (unsigned j = srcDims; j < d[i].size() - 1; j++)
-            eq[j + uDims + existing] = d[i][j];
+            eq[j + uDims] = d[i][j];
           eq.back() += d[i].back();
 
           eq[i + srcDims] = -1;
           disjunct.addEquality(eq);
         }
+      }
+      if (0) {
+        llvm::errs() << "sink = "; sink.dump();
+        llvm::errs() << "dep = "; dep->dump();
+        llvm::errs() << "u = "; u->dump();
+        llvm::errs() << "domain = "; domain.dump();
+        llvm::errs() << "output = "; output.dump();
+        llvm::errs() << "reuse = "; reuseInstance.simplify().dump();
       }
       
       auto attr = getAttr<ArrayOffsetAttr>(u);
@@ -882,10 +937,8 @@ void ComputeDeps::runOnSink(GetElementOp sink) {
     } // for each u in between
 
     countCapacityMisses(domain, instances);
-    llvm::errs() << "done for this piece.\n";
-    llvm::errs() << "cap. missed = " << capacityMisses << "\n";
   } // for each piece of lexmax
-  llvm::errs() << "cap. missed = " << capacityMisses << "\n";
+  llvm::errs() << "total capacity misses = " << capacityMisses << "\n";
 }
 
 void ComputeDeps::countCapacityMisses(const PresburgerRelation &domain, DenseMap<Operation *, std::vector<PresburgerRelation>> &instances) {
@@ -905,7 +958,6 @@ void ComputeDeps::countCapacityMisses(const PresburgerRelation &domain, DenseMap
     total.convertVarKind(VarKind::Domain, 0, srcDims, VarKind::Symbol, 0);
     total = total.simplify();
     auto result = countIntegerPoints(total);
-    llvm::errs() << "looking at total:\n"; total.dump();
 
     for (const auto &[region, count] : result) {
       if (region.isIntegerEmpty())
@@ -916,15 +968,16 @@ void ComputeDeps::countCapacityMisses(const PresburgerRelation &domain, DenseMap
       PresburgerRelation rel(region);
       IntegerRelation exceed(region.getSpace());
       assert(region.getSpace().getNumVars() == srcDims);
-      llvm::errs() << "region = "; region.dump();
-      llvm::errs() << "count = "; count.dump(); llvm::errs() << "\n";
 
       SmallVector<DynamicAPInt> ineq(srcDims + 1);
+      bool barvinokable = true;
       for (unsigned i = 0, e = count.getCoefficients().size(); i < e; i++) {
         auto coeff = count.getCoefficients()[i];
         auto affine = count.getAffine()[i];
-        if (affine.size() > 1)
-          llvm_unreachable("NYI: more multiplications");
+        if (affine.size() > 1) {
+          barvinokable = false;
+          break;
+        }
         
         // A constant.
         if (affine.size() == 0)
@@ -933,17 +986,34 @@ void ComputeDeps::countCapacityMisses(const PresburgerRelation &domain, DenseMap
         // A single affine expression.
         if (affine.size() == 1) {
           const auto &expr = affine[0];
-          assert(std::all_of(expr.begin(), expr.end(), [](const Fraction &f) { return f.num % f.den == 0; }));
+          if (!std::all_of(expr.begin(), expr.end(), [](const Fraction &f) { return f.num % f.den == 0; })) {
+            barvinokable = false;
+            break;
+          }
           assert(expr.size() == srcDims + 1);
           for (unsigned i = 0; i < srcDims + 1; i++)
             ineq[i] += expr[i].getAsInteger();
         }
       }
+      if (!barvinokable) {
+        auto divonly = region.computeReprWithOnlyDivLocals();
+        std::set<std::vector<DynamicAPInt>> feasiblePoints;
+        std::vector<DynamicAPInt> current;
+
+        for (const auto &disjunct : divonly.getAllDisjuncts())
+          enumerateFeasiblePoints(disjunct, feasiblePoints, current);
+        
+        for (const auto &point : feasiblePoints) {
+          if (count.evaluate(point) >= cacheSize)
+            capacityMisses += 1;
+        }
+        continue;
+      }
 
       ineq.back() -= cacheSize;
       exceed.addInequality(ineq);
-      rel = rel.intersect(PresburgerRelation(exceed));
-      rel = rel.intersect(domain).simplify();
+      rel = rel.intersect(domain);
+      rel = rel.intersect(PresburgerRelation(exceed)).simplify();
 
       auto misses = countIntPointsWithoutParameters(rel);
       capacityMisses += misses;
@@ -952,26 +1022,6 @@ void ComputeDeps::countCapacityMisses(const PresburgerRelation &domain, DenseMap
 }
 
 void ComputeDeps::runOnOperation() {
-/*
-  0   1  -2  >= 0
-  0  -1   4  >= 0
- -1   0   11 >= 0
-  2  -3  -2  >= 0
-*/
-  IntegerRelation rel(PresburgerSpace::getRelationSpace(0, 1, 1, 0));
-  rel.addInequality({ 0, 1, -2 });
-  rel.addInequality({ 0, -1, 4 });
-  rel.addInequality({ -1, 0, 11 });
-  rel.addInequality({ 2, -3, -2 });
-  auto result = countIntegerPoints(PresburgerRelation(rel));
-  for (const auto &[region, count] : result) {
-    if (region.isIntegerEmpty())
-      continue;
-    llvm::errs() << "region:\n"; region.dump();
-    llvm::errs() << "count:\n"; count.dump(); llvm::errs() << "\n";
-  }
-  return;
-
   auto *module = getOperation();
   markLexicalOrder();
   unsigned nextIndex = 1;

@@ -63,12 +63,14 @@ public:
   // Removes terms which evaluate to zero from the expression
   // and folds affine functions which are constant into the
   // constant coefficients.
-  QuasiPolynomial simplify();
+  QuasiPolynomial simplify() const;
 
   // Group together like terms in the expression.
-  QuasiPolynomial collectTerms();
+  QuasiPolynomial collectTerms() const;
 
   Fraction getConstantTerm();
+
+  Fraction evaluate(ArrayRef<DynamicAPInt> x) const;
 
   void print(llvm::raw_ostream &os) const;
   void dump() const { print(llvm::errs()); }

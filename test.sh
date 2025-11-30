@@ -39,6 +39,8 @@ while [[ $# -gt 0 ]]; do
       verbose=1; shift;;
     -V|--valgrind)
       valgrind=1; shift;;
+    --gdb)
+      gdb=1; shift;;
     -f|--fix)
       rm -f build/bin/clang build/bin/clang++
       ln -s /usr/local/bin/clang build/bin/clang
@@ -121,6 +123,8 @@ if [[ -n $testcase ]]; then
   rm -f $output
   if [[ -n $valgrind ]]; then
     echo $cachesize | valgrind clang -I$polybench/utilities -emit-cir $testpath -o $output
+  elif [[ -n $gdb ]]; then
+    gdb --args clang -I$polybench/utilities -emit-cir $testpath -o $output
   else
     echo $cachesize | clang -I$polybench/utilities -emit-cir $testpath -o $output
   fi

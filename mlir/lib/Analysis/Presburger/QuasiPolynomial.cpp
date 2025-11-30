@@ -106,7 +106,7 @@ QuasiPolynomial QuasiPolynomial::operator*(const Fraction &x) const {
 // Removes terms which evaluate to zero from the expression and
 // integrate affine functions which are constants into the
 // coefficients.
-QuasiPolynomial QuasiPolynomial::simplify() {
+QuasiPolynomial QuasiPolynomial::simplify() const {
   Fraction newCoeff = 0;
   SmallVector<Fraction> newCoeffs({});
 
@@ -151,7 +151,7 @@ QuasiPolynomial QuasiPolynomial::simplify() {
   return QuasiPolynomial(getNumInputs(), newCoeffs, newAffine);
 }
 
-QuasiPolynomial QuasiPolynomial::collectTerms() {
+QuasiPolynomial QuasiPolynomial::collectTerms() const {
   SmallVector<Fraction> newCoeffs({});
   std::vector<std::vector<SmallVector<Fraction>>> newAffine({});
 
@@ -180,6 +180,20 @@ Fraction QuasiPolynomial::getConstantTerm() {
   return constTerm;
 }
 
+Fraction QuasiPolynomial::evaluate(ArrayRef<DynamicAPInt> x) const {
+  Fraction value = 0;
+  for (unsigned i = 0; i < affine.size(); i++) {
+    Fraction term = 1;
+    for (ArrayRef<Fraction> xCoeffs : affine[i]) {
+      Fraction sum = std::inner_product(x.begin(), x.end(), xCoeffs.begin(), Fraction());
+      term *= floor(sum + xCoeffs.back());
+    }
+    Fraction coeff = coefficients[i];
+    value += coeff * term;
+  }
+  return value;
+}
+
 void QuasiPolynomial::print(llvm::raw_ostream &os) const {
   if (affine.empty()) {
     os << "<empty>";
@@ -191,12 +205,16 @@ void QuasiPolynomial::print(llvm::raw_ostream &os) const {
       os << " + ";
 
     os << coefficients[i] << " * [";
+    if (affine[i].size() > 1)
+      os << "{";
     for (unsigned j = 0, f = affine[i].size(); j < f; j++) {
       if (j != 0)
-        os << " * ";
+        os << "} * {";
       
       llvm::interleaveComma(affine[i][j], os);
     }
+    if (affine[i].size() > 1)
+      os << "}";
     os << "]";
   }
 }

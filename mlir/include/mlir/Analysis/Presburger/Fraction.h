@@ -58,7 +58,7 @@ struct Fraction {
     if (den == 1)
       return os << num;
     
-    return os << "(" << num << "/" << den << ")";
+    return os << num << "/" << den;
   }
 
   /// The numerator and denominator, respectively. The denominator is always
