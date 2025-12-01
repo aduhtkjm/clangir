@@ -31,7 +31,6 @@ void FindOffset::runOnOperation() {
     findBaseInFunction(func);
     findOffsetInFunction(func);
   }
-  module.dump();
 }
 
 unsigned markBase(PtrStrideOp stride) {

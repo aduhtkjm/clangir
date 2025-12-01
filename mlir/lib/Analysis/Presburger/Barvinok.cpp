@@ -499,12 +499,22 @@ std::pair<IntegerRelation, PolyhedronH> mlir::presburger::detail::projectToFullD
     return { IntegerRelation::getUniverse(paramSpace), poly };
   }
 
-  for (unsigned i = 0, e = affineHull.getNumRows(); i < e; i++)
-    poly.addEquality(affineHull.getRow(i));
+  IntegerRelation newpoly(poly.getSpace());
+  Simplex simplex(poly);
+  for (unsigned i = 0; i < poly.getNumInequalities(); i++) {
+    if (simplex.isFlatAlong(poly.getInequality(i))) {
+      newpoly.addEquality(poly.getInequality(i));
+      continue;
+    }
 
-  poly.simplify();
-  poly.removeTrivialRedundancy();
-  auto result = eliminateEqualities(poly);
+    newpoly.addInequality(poly.getInequality(i));
+  }
+  for (unsigned i = 0; i < poly.getNumEqualities(); i++)
+    newpoly.addEquality(poly.getEquality(i));
+
+  newpoly.simplify();
+  newpoly.removeTrivialRedundancy();
+  auto result = eliminateEqualities(newpoly);
   if (getAffineHull(result.second).getNumRows() != 0) {
     auto [constraint, r] = projectToFullDimension(result.second);
     return { constraint.intersect(result.first), r };
@@ -1356,8 +1366,10 @@ void obtainRegions(const PresburgerRelation &rel, const PolyhedronH &current, Sm
       outRecords.push_back({ active, constraint, one });
       return;
     }
-    if (projected.isIntegerEmpty())
-      return;
+    // We should guarantee that the number of integer points 
+    // #projected = #current. Since current is non-empty, neither should
+    // projected be.
+    assert(!projected.isIntegerEmpty());
     auto gfs = computePolytopeGeneratingFunction(projected);
     for (const auto &[region_, gf] : gfs) {
       auto region = region_.intersect(constraint);
@@ -1392,9 +1404,7 @@ mlir::presburger::detail::countIntegerPoints(const PresburgerRelation &rel) {
   std::vector<Region> records;
   SmallVector<unsigned> active;
   auto universe = IntegerRelation::getUniverse(rel.getSpace());
-  llvm::errs() << "rel size = " << rel.getNumDisjuncts() << "\n";
   obtainRegions(rel, universe, active, 0, records);
-  llvm::errs() << "finished\n";
 
   unsigned numParams = rel.getNumSymbolVars();
   auto paramSpace = PresburgerSpace::getSetSpace(numParams);

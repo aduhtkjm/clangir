@@ -1148,11 +1148,6 @@ bool IntegerRelation::gaussianEliminate() {
       eliminateFromConstraint(this, i, *pivotRow, firstVar, 0, true);
       equalities.normalizeRow(i);
     }
-    for (unsigned i = 0, ineqs = getNumInequalities(); i < ineqs; ++i) {
-      eliminateFromConstraint(this, i, *pivotRow, firstVar, 0, false);
-      inequalities.normalizeRow(i);
-    }
-    gcdTightenInequalities();
 
     // The column is finished. Tell the next iteration to start at the next
     // column.
