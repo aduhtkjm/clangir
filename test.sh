@@ -117,7 +117,7 @@ if [[ $? -ne 0 ]]; then
 fi
 
 if [[ -n $testcase ]]; then
-  testpath=$(find $polybench $tamper/test -regextype posix-extended -regex ".*$testcase\.c(pp)?")
+  testpath=$(find $polybench $tamper/test -regextype posix-extended -regex ".*/$testcase\.c(pp)?")
   echo "testing: $testpath"
   output=$tamper/"$testcase.mlir"
   rm -f $output

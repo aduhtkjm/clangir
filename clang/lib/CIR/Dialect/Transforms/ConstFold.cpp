@@ -1,6 +1,4 @@
 #include "PassDetail.h"
-#include "mlir/Dialect/Affine/IR/AffineOps.h"
-#include "mlir/Dialect/MemRef/Transforms/Passes.h"
 #include "mlir/Transforms/DialectConversion.h"
 #include "clang/CIR/Dialect/IR/CIRDialect.h"
 #include "clang/CIR/Dialect/Passes.h"
@@ -31,7 +29,7 @@ mlir::LogicalResult foldBinary(BinOp op) {
     return mlir::failure();
 
   auto lhsAttr = cast<ConstantOp>(lhsOp).getValue();
-  auto rhsAttr = cast<ConstantOp>(lhsOp).getValue();
+  auto rhsAttr = cast<ConstantOp>(rhsOp).getValue();
   if (!isSignedInt(lhsAttr.getType()) || !isSignedInt(rhsAttr.getType()))
     return mlir::failure();
 

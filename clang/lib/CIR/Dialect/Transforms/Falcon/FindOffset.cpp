@@ -132,8 +132,8 @@ llvm::DenseMap<mlir::Operation*, int> getForIds(mlir::Operation *op) {
       continue;
 
     // According to RaiseToFor, the first operation must be `from_index`.
+    // It is also possible that this index is never used.
     auto &first = runner->getRegion(0).front().front();
-    assert(isa<FromIndexOp>(first));
 
     operations.push_back(&first);
   }
@@ -141,24 +141,10 @@ llvm::DenseMap<mlir::Operation*, int> getForIds(mlir::Operation *op) {
   // We enumerate from the innermost to outermost.
   // Therefore when we assign IDs, we must reverse the operations first.
   for (auto [id, op] : llvm::enumerate(llvm::reverse(operations))) {
-    map[op] = id;
+    if (isa<FromIndexOp>(op))
+      map[op] = id;
   }
   return map;
-}
-
-// Gets the size (in bytes) of the type in C++.
-unsigned getSize(mlir::Type ty) {
-  if (auto intTy = dyn_cast<IntType>(ty))
-    return intTy.getWidth();
-  if (isa<DoubleType>(ty))
-    return 8;
-  if (isa<SingleType>(ty))
-    return 4;
-  if (auto arrTy = dyn_cast<ArrayType>(ty))
-    return arrTy.getSize() * getSize(arrTy.getElementType());
-  
-  ty.dump();
-  llvm_unreachable("unknown type");
 }
 
 void FindOffset::findOffsetInFunction(FuncOp func) {
@@ -171,58 +157,55 @@ void FindOffset::findOffsetInFunction(FuncOp func) {
     
     // Calculates offset from the base by recursively examining the operands, to
     // construct an affine expression.
-    std::function<std::optional<AffineExpr>(mlir::Operation*)> calculateOffset =
-    [&](mlir::Operation *op) -> std::optional<AffineExpr> {
+    std::function<std::vector<AffineExpr>(mlir::Operation*)> calculateOffset =
+    [&](mlir::Operation *op) -> std::vector<AffineExpr> {
       if (!op)
         return {};
 
       if (isa<AllocaOp>(op))
-        return getAffineConstantExpr(0, ctx);
+        return { getAffineConstantExpr(0, ctx) };
 
       if (auto cast = dyn_cast<CastOp>(op); cast && cast.getKind() == CastKind::array_to_ptrdecay)
-        return getAffineConstantExpr(0, ctx);
+        return { getAffineConstantExpr(0, ctx) };
 
       if (forId.count(op))
-        return getAffineDimExpr(forId[op], ctx);
+        return { getAffineDimExpr(forId[op], ctx) };
 
       if (auto constop = dyn_cast<ConstantOp>(op)) {
         if (auto intAttr = dyn_cast<IntAttr>(constop.getValue()))
-          return getAffineConstantExpr(intAttr.getSInt(), ctx);
+          return { getAffineConstantExpr(intAttr.getSInt(), ctx) };
       }
 
-      if (auto stride = dyn_cast<PtrStrideOp>(op)) {
-        auto base = calculateOffset(stride.getBase().getDefiningOp());
-        auto offset = calculateOffset(stride.getStride().getDefiningOp());
-        unsigned size = getSize(stride.getType().getPointee());
-        if (base && offset)
-          return *base + *offset * size;
+      if (auto getelem = dyn_cast<PtrStrideOp>(op)) {
+        auto baseop = getelem.getBase();
+        auto base = calculateOffset(baseop.getDefiningOp());
+        auto index = calculateOffset(getelem.getStride().getDefiningOp());
+        if (base.empty() || index.size() != 1)
+          return {};
+        base.back() = base.back() + index[0];
+        return base;
       }
 
       if (auto getelem = dyn_cast<GetElementOp>(op)) {
         auto baseop = getelem.getBase();
         auto base = calculateOffset(baseop.getDefiningOp());
         auto index = calculateOffset(getelem.getIndex().getDefiningOp());
-        // Consider the base size.
-        auto type = getelem->getResultTypes()[0];
-        auto ground = cast<PointerType>(type).getPointee();
-        unsigned size = 1;
-        if (auto arr = dyn_cast<ArrayType>(ground))
-          size = arr.getSize();
-        
-        if (base && index)
-          return *base + *index * size;
+        if (base.empty() || index.size() != 1)
+          return {};
+        base.push_back(index[0]);
+        return base;
       }
 
       if (auto binop = dyn_cast<BinOp>(op)) {
         auto lhs = calculateOffset(binop.getLhs().getDefiningOp());
         auto rhs = calculateOffset(binop.getRhs().getDefiningOp());
-        if (!lhs || !rhs)
+        if (lhs.size() != 1 || rhs.size() != 1)
           return {};
 
         switch (binop.getKind()) {
-        case BinOpKind::Mul: return *lhs * *rhs;
-        case BinOpKind::Add: return *lhs + *rhs;
-        case BinOpKind::Sub: return *lhs - *rhs;
+        case BinOpKind::Mul: return { lhs[0] * rhs[0] };
+        case BinOpKind::Add: return { lhs[0] + rhs[0] };
+        case BinOpKind::Sub: return { lhs[0] - rhs[0] };
         default:
           return {};
         }
@@ -232,8 +215,11 @@ void FindOffset::findOffsetInFunction(FuncOp func) {
     };
 
     auto offset = calculateOffset(access);
-    if (offset)
-      setAttr<ArrayOffsetAttr>(access, ctx, AffineMap::get(dimCount, symCount, *offset));
+    // We must remove the foremost offset, which is always zero.
+    if (offset.size())
+      offset.erase(offset.begin());
+    if (offset.size())
+      setAttr<ArrayOffsetAttr>(access, ctx, AffineMap::get(dimCount, symCount, offset, func->getContext()));
   }
 }
 

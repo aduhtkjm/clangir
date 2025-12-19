@@ -22,15 +22,16 @@ struct ComputeDeps : public ComputeDepsBase<ComputeDeps> {
   using ComputeDepsBase::ComputeDepsBase;
   
   void runOnOperation() override;
-  void runOnSink(GetElementOp sink);
+  void runOnSink(Operation *sink);
   void markLexicalOrder();
   void markLoopInductionVars(Operation *op, SmallVector<unsigned> indices, unsigned &nextIndex);
 
   void addLexLess(PresburgerRelation &rel, IntegerRelation base, Operation *dep, Operation *sink, unsigned depDims, unsigned srcDims);
   void countCapacityMisses(const PresburgerRelation &domain, DenseMap<Operation *, std::vector<PresburgerRelation>> &instances);
+  void oldCountCapacityMisses(const PresburgerRelation &domain, DenseMap<Operation *, std::vector<PresburgerRelation>> &instances);
 
-  PresburgerRelation getDeps(GetElementOp sink, GetElementOp dep);
-  llvm::SmallVector<GetElementOp> findRelevant();
+  PresburgerRelation getDeps(Operation *sink, Operation *dep);
+  llvm::SmallVector<Operation*> findRelevant();
 private:
   // For two operations S and T,
   // lexIndex[S] < lexIndex[T] iff. S is lexically before T in the IR.
@@ -289,8 +290,9 @@ void enumerateFeasiblePoints(const IntegerRelation &rel, std::set<std::vector<Dy
 
 void ComputeDeps::markLexicalOrder() {
   unsigned id = 1;
-  getOperation()->walk([&](GetElementOp op) {
-    lexIndex[op] = id++;
+  getOperation()->walk([&](Operation *op) {
+    if (isa<LoadOp>(op) || isa<StoreOp>(op))
+      lexIndex[op] = id++;
   });
 }
 
@@ -298,6 +300,7 @@ void ComputeDeps::markLoopInductionVars(mlir::Operation *op, SmallVector<unsigne
   if (auto forOp = dyn_cast<AffineForOp>(op)) {
     unsigned newLoopIndex = nextIndex++;
     indices.push_back(newLoopIndex);
+    // TODO: loopVarIndex = min(lexIndex in the loop)
     loopVarIndex[op] = indices;
   }
 
@@ -317,7 +320,7 @@ void ComputeDeps::addLexLess(PresburgerRelation &rel, IntegerRelation base,
   Operation *dep, Operation *sink, unsigned depDims, unsigned srcDims) {
   unsigned depth = findCommonLoopDepth(sink, dep);
   unsigned dims = depDims + srcDims;
-  for (unsigned i = 0; i < std::max(depDims, srcDims); i++) {
+  for (unsigned i = 0; i <= std::max(depDims, srcDims); i++) {
     if (i >= depth) {
       // Now all common loop indices are already exhausted.
       // If `dep` goes lexically before `sink` in the sink program,
@@ -419,28 +422,29 @@ AffineMap getMap(GetElementOp sink) {
   return getAttr<ArrayOffsetAttr>(sink).getMap();
 }
 
-llvm::SmallVector<GetElementOp> ComputeDeps::findRelevant() {
+GetElementOp getGEP(Operation *sink) {
+  if (auto load = dyn_cast<LoadOp>(sink))
+    return cast<GetElementOp>(load.getAddr().getDefiningOp());
+  if (auto store = dyn_cast<StoreOp>(sink))
+    return cast<GetElementOp>(store.getAddr().getDefiningOp());
+  assert(false && "get gep failed");
+}
+
+llvm::SmallVector<Operation*> ComputeDeps::findRelevant() {
   auto *module = getOperation();
-  llvm::SmallVector<GetElementOp> result;
+  llvm::SmallVector<Operation*> result;
   auto loads = findAll<LoadOp>(module);
-  for (auto load : loads) {
-    auto *base = load.getAddr().getDefiningOp();
-    if (auto gep = dyn_cast<GetElementOp>(base))
-      result.push_back(gep);
-  }
+  llvm::copy_if(loads, std::back_inserter(result), [](LoadOp op) { return isa<GetElementOp>(op.getAddr().getDefiningOp()); });
   auto stores = findAll<StoreOp>(module);
-  for (auto store : stores) {
-    auto *base = store.getAddr().getDefiningOp();
-    if (auto gep = dyn_cast<GetElementOp>(base))
-      result.push_back(gep);
-  }
+  llvm::copy_if(stores, std::back_inserter(result), [](StoreOp op) { return isa<GetElementOp>(op.getAddr().getDefiningOp()); });
   return result;
 }
 
-PresburgerRelation ComputeDeps::getDeps(GetElementOp sink, GetElementOp dep) {
+PresburgerRelation ComputeDeps::getDeps(Operation *sink, Operation *depp) {
   auto empty = PresburgerRelation::getEmpty(PresburgerSpace::getSetSpace());
+  auto dep = getGEP(depp);
   // It's only possible when the operation and sink access the same array.
-  if (auto attr = getAttr<ArrayBaseAttr>(dep); !attr || attr.getId() != getBaseId(sink))
+  if (auto attr = getAttr<ArrayBaseAttr>(dep); !attr || attr.getId() != getBaseId(getGEP(sink)))
     return empty;
 
   auto offset = getAttr<ArrayOffsetAttr>(dep);
@@ -457,7 +461,7 @@ PresburgerRelation ComputeDeps::getDeps(GetElementOp sink, GetElementOp dep) {
   // each nested loop a different ID for their loop variables to distinguish
   // them.
   unsigned depDims = depMap.getNumDims();
-  unsigned srcDims = getDimension(sink);
+  unsigned srcDims = getDimension(getGEP(sink));
   unsigned dims = depDims + srcDims;
   PresburgerSpace space = PresburgerSpace::getSetSpace(dims, 0);
 
@@ -474,19 +478,23 @@ PresburgerRelation ComputeDeps::getDeps(GetElementOp sink, GetElementOp dep) {
     /*numReservedEqualities=*/1,
     /*numReservedCols=*/space.getNumVars() + 1, space);
   
-  // The offsets must be equal.
-  auto depCoeff = extractCoefficients(depMap.getResult(0), {}, depDims);
-  auto equality = extractCoefficients(getMap(sink).getResult(0), {}, srcDims);
+  // All offsets must be equal.
+  auto sinkMap = getMap(getGEP(sink));
+  assert(depMap.getNumResults() == sinkMap.getNumResults());
+  for (unsigned i = 0; i < depMap.getNumResults(); i++) {
+    auto depCoeff = extractCoefficients(depMap.getResult(i), {}, depDims);
+    auto equality = extractCoefficients(sinkMap.getResult(i), {}, srcDims);
 
-  // Concatenate the coefficients together, and pay special attention to constants
-  // at the end.
-  auto eqConstant = depCoeff.back();
-  equality.pop_back();
-  for (auto coeff : depCoeff)
-    equality.push_back(-coeff);
-  equality.back() += eqConstant;
+    // Concatenate the coefficients together, and pay special attention to constants
+    // at the end.
+    auto eqConstant = depCoeff.back();
+    equality.pop_back();
+    for (auto coeff : depCoeff)
+      equality.push_back(-coeff);
+    equality.back() += eqConstant;
 
-  depend.addEquality(equality);
+    depend.addEquality(equality);
+  }
 
   // Add bound constraints.
   // An extra element (the last one) for the constant.
@@ -495,7 +503,7 @@ PresburgerRelation ComputeDeps::getDeps(GetElementOp sink, GetElementOp dep) {
 
   // `dep` must be lexicographically before `sink`.
   PresburgerRelation rel = PresburgerRelation::getEmpty(depend.getSpace().getSpaceWithoutLocals());
-  addLexLess(rel, depend, dep, sink, depDims, srcDims);
+  addLexLess(rel, depend, depp, sink, depDims, srcDims);
   
   // Record this in the map.
   // Note that we can't use `deps[dep] = rel`, because operator[]
@@ -504,9 +512,9 @@ PresburgerRelation ComputeDeps::getDeps(GetElementOp sink, GetElementOp dep) {
   return rel.simplify();
 }
 
-void ComputeDeps::runOnSink(GetElementOp sink) {
-  static auto getelems = findAll<GetElementOp>(getOperation());
-  auto sinkDomain = getDomain(sink);
+void ComputeDeps::runOnSink(Operation *sink) {
+  static auto loadstores = findRelevant();
+  auto sinkDomain = getDomain(getGEP(sink));
   if (sinkDomain.isIntegerEmpty())
     return;
 
@@ -517,7 +525,7 @@ void ComputeDeps::runOnSink(GetElementOp sink) {
   std::map<Operation*, PresburgerRelation, LessAccess> depsIndividual(LessAccess(this));
 
   // Check whether `sink` depends on `dep`.
-  for (auto dep : getelems) {
+  for (auto *dep : loadstores) {
     auto rel = getDeps(sink, dep);
     depsIndividual.insert({ dep, rel });
   }
@@ -573,7 +581,7 @@ void ComputeDeps::runOnSink(GetElementOp sink) {
   // The dimension of the common space.
   // This does not count the final constant. In other word, an equality/
   // inequality in the space should have `commonDims + 1` elements.
-  unsigned srcDims = getDimension(sink);
+  unsigned srcDims = getDimension(getGEP(sink));
   unsigned commonDims = srcDims;
 
   for (const auto &[statement, _]: depsIndividual) {
@@ -612,11 +620,6 @@ void ComputeDeps::runOnSink(GetElementOp sink) {
       // Record the map from indices to statement.
       SmallVector<unsigned> indices = loopVarIndex[innermostLoop];
 
-      // Don't forget the statement identifier at the end.
-      const unsigned statementId = lexIndex[statement];
-      indices.push_back(statementId);
-      index2Statement[indices] = statement;
-
       // Add equalities for this statement, that constrains loop
       // variable indices.
       for (auto [i, index] : llvm::enumerate(indices)) {
@@ -635,6 +638,11 @@ void ComputeDeps::runOnSink(GetElementOp sink) {
         equality[i] = 1;
         newRel.addEquality(equality);
       }
+
+      // Don't forget the statement identifier at the end.
+      const unsigned statementId = lexIndex[statement];
+      indices.push_back(statementId);
+      index2Statement[indices] = statement;
 
       // An additional equality that specifies the statement id.
       SmallVector<DynamicAPInt> equality(commonDims + 1);
@@ -681,6 +689,8 @@ void ComputeDeps::runOnSink(GetElementOp sink) {
 
   SymbolicLexOpt lexmax = depsTotal.simplify().findSymbolicIntegerLexMax();
   PWMAFunction deps = lexmax.lexopt;
+  deps.simplify();
+  assert(lexmax.unboundedDomain.isIntegerEmpty());
 
   PresburgerRelation untouched(sinkDomain);
   for (const auto &piece : deps.getAllPieces())
@@ -689,12 +699,22 @@ void ComputeDeps::runOnSink(GetElementOp sink) {
   
   // The number of compulsory misses is equal to the number of integer points in `untouched`,
   // composed with the access function.
-  auto sinkCoeffs = extractCoefficients(getMap(sink).getResult(0), {}, srcDims);
-  IntegerRelation sinkAccess(PresburgerSpace::getRelationSpace(srcDims, 1));
-  sinkCoeffs.insert(sinkCoeffs.end() - 1, -1);
-  sinkAccess.addEquality(sinkCoeffs);
+  auto sinkMap = getMap(getGEP(sink));
+  auto arrDims = sinkMap.getNumResults();
+  IntegerRelation sinkAccess(PresburgerSpace::getRelationSpace(srcDims, arrDims));
+  for (unsigned i = 0; i < arrDims; i++) {
+    auto sinkCoeffs = extractCoefficients(sinkMap.getResult(i), {}, srcDims);
+    sinkCoeffs.resize(srcDims + arrDims + 1);
+    // Move the constant to the back.
+    sinkCoeffs[srcDims + arrDims] = sinkCoeffs[srcDims];
+    sinkCoeffs[srcDims] = 0;
+    // Get an -1 at the proper place.
+    sinkCoeffs[srcDims + i] = -1;
+    sinkAccess.addEquality(sinkCoeffs);
+  }
   untouched.compose(PresburgerRelation(sinkAccess));
-  compulsoryMisses += countIntPointsWithoutParameters(untouched.computeReprWithOnlyDivLocals());
+  untouched = untouched.simplify().computeReprWithOnlyDivLocals();
+  compulsoryMisses += countIntPointsWithoutParameters(untouched);
 
   // Now, for each chamber of `deps`, we want to get the number of instances
   // between `sink(p)` and `deps(sink(p))`.
@@ -706,7 +726,6 @@ void ComputeDeps::runOnSink(GetElementOp sink) {
     auto domain = piece.domain.simplify();
     auto output = piece.output;
     unsigned locals = output.getNumDivs();
-    
     
     // First, extract the index values from `piece.output`.
     // These correspond to the exact statement.
@@ -721,8 +740,11 @@ void ComputeDeps::runOnSink(GetElementOp sink) {
       // For any present index, we guarantee that it's at least 1.
       // The only situation that a zero appears is when the index is
       // zeroed out, i.e. it is not present. (See above.)
-      if (indexExpr.back() == 0)
+      if (indexExpr.back() == 0) {
+        // We still need to add the statement index to it.
+        indices.push_back((int64_t) output.getOutputExpr(e - 1).back());
         break;
+      }
 
       // `indexExpr` should be a constant expression.
       // TODO: check indexExpr are all zeroes except the last element.
@@ -738,7 +760,12 @@ void ComputeDeps::runOnSink(GetElementOp sink) {
         d.back().push_back((int64_t) coeff);
     }
 
-    assert(index2Statement.count(indices));
+    if (!index2Statement.count(indices)) {
+      llvm::errs() << "unknown indices: ";
+      llvm::interleaveComma(indices, llvm::errs());
+      llvm::errs() << "\n";
+      assert(false);
+    }
     Operation *dep = index2Statement[indices];
 
     // Now enumerate statements between `dep` and `sink`.
@@ -759,8 +786,10 @@ void ComputeDeps::runOnSink(GetElementOp sink) {
     // But this won't affect correctness anyway, as their corresponding
     // "between" relation will be empty.
     for (auto *runner = outermostDep; runner != stop; runner = runner->getNextNode()) {
-      auto stmts = findAll<GetElementOp>(runner);
-      std::copy(stmts.begin(), stmts.end(), std::back_inserter(inBetween));
+      auto loads = findAll<LoadOp>(runner);
+      llvm::copy_if(loads, std::back_inserter(inBetween), [](LoadOp op) { return isa<GetElementOp>(op.getAddr().getDefiningOp()); });
+      auto stores = findAll<StoreOp>(runner);
+      llvm::copy_if(stores, std::back_inserter(inBetween), [](StoreOp op) { return isa<GetElementOp>(op.getAddr().getDefiningOp()); });
     }
 
     // For each collected operation `u`, compute the `reuseInstance` relation.
@@ -778,6 +807,13 @@ void ComputeDeps::runOnSink(GetElementOp sink) {
     for (Operation *u : inBetween) {
       auto uBounds = getLoopBounds(u);
       if (!uBounds)
+        continue;
+      Operation *addr = nullptr;
+      if (auto load = dyn_cast<LoadOp>(u))
+        addr = load.getAddr().getDefiningOp();
+      if (auto store = dyn_cast<StoreOp>(u))
+        addr = store.getAddr().getDefiningOp();
+      if (!addr || !addr->hasAttr(ArrayOffsetAttr::getMnemonic()))
         continue;
 
       // The dimension of `p` in the above definition.
@@ -903,27 +939,34 @@ void ComputeDeps::runOnSink(GetElementOp sink) {
           disjunct.addEquality(eq);
         }
       }
-      if (0) {
-        llvm::errs() << "sink = "; sink.dump();
-        llvm::errs() << "dep = "; dep->dump();
-        llvm::errs() << "u = "; u->dump();
+      if (0 && !reuseInstance.isIntegerEmpty()) {
+        llvm::errs() << "sink (index = " << lexIndex[sink] << ") = "; sink->dump();
+        llvm::errs() << "dep (index = " << lexIndex[dep] << ") = "; dep->dump();
+        llvm::errs() << "u (index = " << lexIndex[u] << ") = "; u->dump();
         llvm::errs() << "domain = "; domain.dump();
         llvm::errs() << "output = "; output.dump();
         llvm::errs() << "reuse = "; reuseInstance.simplify().dump();
       }
       
-      auto attr = getAttr<ArrayOffsetAttr>(u);
-      auto getelem = cast<GetElementOp>(u);
+      auto getelem = getGEP(u);
+      auto attr = getAttr<ArrayOffsetAttr>(getelem);
       auto accessMap = attr.getMap();
       
       // For every point in the space of induction vector of u,
       // the statement accesses exactly one point.
-      auto accessSpace = PresburgerSpace::getRelationSpace(uDims, 1);
+      auto arrDims = accessMap.getNumResults();
+      auto accessSpace = PresburgerSpace::getRelationSpace(uDims, arrDims);
       IntegerRelation accessRel(accessSpace);
-      auto accessCoeffs = extractCoefficients(accessMap.getResult(0), {}, uDims);
-      // The penultimate entry stands for this point.
-      accessCoeffs.insert(accessCoeffs.end() - 1, -1);
-      accessRel.addEquality(accessCoeffs);
+      for (unsigned i = 0; i < arrDims; i++) {
+        auto coeffs = extractCoefficients(accessMap.getResult(0), {}, uDims);
+        coeffs.resize(arrDims + uDims + 1);
+        // Move constant to the back.
+        coeffs[arrDims + uDims] = coeffs[uDims];
+        coeffs[uDims] = 0;
+        // Get -1 at the correct place.
+        coeffs[uDims + i] = -1;
+        accessRel.addEquality(coeffs);
+      }
 
       PresburgerRelation access(accessRel);
       reuseInstance.compose(access);
@@ -938,10 +981,9 @@ void ComputeDeps::runOnSink(GetElementOp sink) {
 
     countCapacityMisses(domain, instances);
   } // for each piece of lexmax
-  llvm::errs() << "total capacity misses = " << capacityMisses << "\n";
 }
 
-void ComputeDeps::countCapacityMisses(const PresburgerRelation &domain, DenseMap<Operation *, std::vector<PresburgerRelation>> &instances) {
+void ComputeDeps::oldCountCapacityMisses(const PresburgerRelation &domain, DenseMap<Operation *, std::vector<PresburgerRelation>> &instances) {
   auto srcDims = domain.getNumRangeVars();
   for (const auto &[_, reuses] : instances) {
     // We must union the relations for the same array, because we only care
@@ -1021,6 +1063,137 @@ void ComputeDeps::countCapacityMisses(const PresburgerRelation &domain, DenseMap
   }
 }
 
+void ComputeDeps::countCapacityMisses(const PresburgerRelation &domain, DenseMap<Operation *, std::vector<PresburgerRelation>> &instances) {
+  auto srcDims = domain.getNumRangeVars();
+  unsigned maxdim = 0;
+  for (const auto &[_, reuses] : instances)
+    maxdim = std::max(maxdim, reuses[0].getNumRangeVars());
+  maxdim++;
+  
+  // Form the disjoint union.
+  auto unionSpace = PresburgerSpace::getRelationSpace(srcDims, maxdim);
+  auto disjointUnion = PresburgerRelation::getEmpty(unionSpace);
+
+  unsigned z = 0;
+  for (const auto &[_, reuses] : instances) {
+    // We must union the relations for the same array, because we only care
+    // about *unique* accesses for each address.
+    assert(!reuses.empty());
+    z++;
+    for (unsigned i = 0, e = reuses.size(); i < e; i++) {
+      auto reuse = reuses[i];
+      assert(reuse.getNumSymbolVars() == 0);
+      assert(reuse.getNumDomainVars() == srcDims);
+
+      PresburgerRelation raised = PresburgerRelation::getEmpty(unionSpace);
+      for (const auto &disjunct : reuse.getAllDisjuncts()) {
+        IntegerRelation result(PresburgerSpace::getRelationSpace(srcDims, maxdim, 0, disjunct.getNumLocalVars()));
+        unsigned dim = result.getNumCols();
+        const auto &raise = [&](bool iseq) {
+          for (unsigned j = 0; j < (iseq ? disjunct.getNumEqualities() : disjunct.getNumInequalities()); j++) {
+            auto eq = iseq ? disjunct.getEquality(j) : disjunct.getInequality(j);
+            SmallVector<DynamicAPInt> vec(dim);
+            auto *it = eq.begin();
+            std::copy(it, it + srcDims, vec.begin());
+            it += srcDims;
+            std::copy(it, it + disjunct.getNumRangeVars(), vec.begin() + srcDims);
+            it += disjunct.getNumRangeVars();
+            std::copy(it, eq.end(), vec.begin() + srcDims + maxdim);
+            if (iseq)
+              result.addEquality(vec);
+            else
+              result.addInequality(vec);
+          }
+        };
+        raise(true);
+        raise(false);
+        // For unused dimensions, let them be zero.
+        for (unsigned i = srcDims + disjunct.getNumRangeVars(); i < srcDims + maxdim - 1; i++) {
+          IntVector eq(dim);
+          eq[i] = 1;
+          result.addEquality(eq);
+        }
+
+        // Add an identifier for disjoint union.
+        IntVector eq(dim);
+        eq[srcDims + maxdim - 1] = 1;
+        eq.back() = z;
+        result.addEquality(eq);
+        raised.unionInPlace(result);
+      }
+      disjointUnion.unionInPlace(raised);
+    }
+  }
+  // Now for each v_s, `total` gives a set of addresses that `u` has accessed
+  // between v_s and deps.
+  // We hope to calculate the function that maps v_s to the cardinality
+  // of this set, so we can view v_s as parameters and count the set.
+  disjointUnion = disjointUnion.simplify();
+  disjointUnion.convertVarKind(VarKind::Domain, 0, srcDims, VarKind::Symbol, 0);
+  auto result = countIntegerPoints(disjointUnion);
+
+  for (const auto &[region, count] : result) {
+    if (region.isIntegerEmpty())
+      continue;
+
+    SmallVector<DynamicAPInt> ineq(srcDims + 1);
+    bool barvinokable = true;
+
+    // Determine whether `count` exceeds cache size in this region.
+    // The space here has only |v_s| range variables.
+    PresburgerRelation rel(region);
+    IntegerRelation exceed(region.getSpace());
+    assert(region.getSpace().getNumVars() == srcDims);
+
+    for (unsigned i = 0, e = count.getCoefficients().size(); i < e; i++) {
+      auto coeff = count.getCoefficients()[i];
+      auto affine = count.getAffine()[i];
+      if (affine.size() > 1) {
+        barvinokable = false;
+        break;
+      }
+      
+      // A constant.
+      if (affine.size() == 0)
+        ineq.back() += coeff.getAsInteger();
+
+      // A single affine expression.
+      if (affine.size() == 1) {
+        const auto &expr = affine[0];
+        if (!std::all_of(expr.begin(), expr.end(), [](const Fraction &f) { return f.num % f.den == 0; })) {
+          barvinokable = false;
+          break;
+        }
+        assert(expr.size() == srcDims + 1);
+        for (unsigned i = 0; i < srcDims + 1; i++)
+          ineq[i] += expr[i].getAsInteger();
+      }
+    }
+    if (!barvinokable) {
+      auto divonly = region.computeReprWithOnlyDivLocals();
+      std::set<std::vector<DynamicAPInt>> feasiblePoints;
+      std::vector<DynamicAPInt> current;
+
+      for (const auto &disjunct : divonly.getAllDisjuncts())
+        enumerateFeasiblePoints(disjunct, feasiblePoints, current);
+      
+      for (const auto &point : feasiblePoints) {
+        if (count.evaluate(point) >= cacheSize)
+          capacityMisses += 1;
+      }
+      continue;
+    }
+
+    ineq.back() -= cacheSize;
+    exceed.addInequality(ineq);
+    rel = rel.intersect(domain);
+    rel = rel.intersect(PresburgerRelation(exceed)).simplify();
+
+    auto misses = countIntPointsWithoutParameters(rel);
+    capacityMisses += misses;
+  }
+}
+
 void ComputeDeps::runOnOperation() {
   auto *module = getOperation();
   markLexicalOrder();
@@ -1032,8 +1205,8 @@ void ComputeDeps::runOnOperation() {
   scanf("%d", &cacheInput);
   cacheSize = cacheInput;
 
-  auto getelems = findAll<GetElementOp>(module); 
-  for (auto sink : getelems)
+  auto getelems = findRelevant(); 
+  for (auto *sink : getelems)
     runOnSink(sink);
 
   llvm::errs() << "total compulsory misses = " << compulsoryMisses << "\n";

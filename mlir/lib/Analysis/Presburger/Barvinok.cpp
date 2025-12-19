@@ -502,18 +502,26 @@ std::pair<IntegerRelation, PolyhedronH> mlir::presburger::detail::projectToFullD
   IntegerRelation newpoly(poly.getSpace());
   Simplex simplex(poly);
   for (unsigned i = 0; i < poly.getNumInequalities(); i++) {
-    if (simplex.isFlatAlong(poly.getInequality(i))) {
-      newpoly.addEquality(poly.getInequality(i));
+    auto maybeMinimum = simplex.computeOptimum(Simplex::Direction::Down, poly.getInequality(i));
+    auto maybeMaximum = simplex.computeOptimum(Simplex::Direction::Up, poly.getInequality(i));
+    if (!maybeMinimum.isBounded() || !maybeMaximum.isBounded()) {
+      newpoly.addInequality(poly.getInequality(i));
       continue;
     }
-
-    newpoly.addInequality(poly.getInequality(i));
+    Fraction minimum = maybeMaximum.getBoundedOptimum();
+    Fraction maximum = maybeMaximum.getBoundedOptimum();
+    if (minimum == maximum && minimum == 0)
+      newpoly.addEquality(poly.getInequality(i));
+    else
+      newpoly.addInequality(poly.getInequality(i));
   }
   for (unsigned i = 0; i < poly.getNumEqualities(); i++)
     newpoly.addEquality(poly.getEquality(i));
 
+  assert(!newpoly.isIntegerEmpty() && "1");
   newpoly.simplify();
   newpoly.removeTrivialRedundancy();
+  assert(!newpoly.isIntegerEmpty() && "2");
   auto result = eliminateEqualities(newpoly);
   if (getAffineHull(result.second).getNumRows() != 0) {
     auto [constraint, r] = projectToFullDimension(result.second);

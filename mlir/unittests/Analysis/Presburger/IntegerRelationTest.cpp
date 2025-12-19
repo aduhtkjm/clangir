@@ -754,3 +754,25 @@ TEST(IntegerRelationTest, simplify3) {
   simplified.dump();
   EXPECT_TRUE(rel.isEqual(simplified));
 }
+
+TEST(IntegerRelationTest, computeReprWithOnlyDivLocals) {
+  IntegerRelation rel(PresburgerSpace::getRelationSpace(0, 1, 0, 7));
+  rel.addEquality({-1,   0,   0,   0,   0,   0,   1,   6,   0});
+  rel.addInequality({ 0,   0,   0,   0,   0,  -1,   0,   0,   0});
+  rel.addInequality({ 0,   0,   0,   0,   0,   1,   0,   0,   0});
+  rel.addInequality({ 0,   0,   0,   0,   0,   0,  -1,   0,   5});
+  rel.addInequality({ 0,   0,   0,   0,   0,   0,   1,   0,   0});
+  rel.addInequality({ 0,   0,   0,   0,   0,   0,   0,  -1,   5});
+  rel.addInequality({ 0,   0,   0,   0,   0,   0,  -1,  -6,  34});
+  rel.addInequality({ 0,   6,   0,   0,   0,   0,  -1,   0,  -2});
+  rel.addInequality({ 0,  -6,   0,   0,   0,   0,   1,   0,   6});
+  rel.addInequality({ 0,   0,   6,   0,   0,   0,  -1,   0,   4});
+  rel.addInequality({ 0,   0,  -6,   0,   0,   0,   1,   0,   0});
+  rel.addInequality({ 0,   0,  -1,   5,   0,   0,  -4,   0,  -5});
+  rel.addInequality({ 0,   0,   1,  -5,   0,   0,   4,   0,   8});
+  rel.addInequality({ 0,   0,  -1,   0,   5,   0,  -4,   0,   0});
+  rel.addInequality({ 0,   0,   1,   0,  -5,   0,   4,   0,   3});
+  rel.addInequality({ 0,   0,   0,   0,   0,   0,   1,   6,  -5});
+  auto v = rel.computeReprWithOnlyDivLocals();
+  EXPECT_TRUE(v.isEqual(PresburgerRelation(rel)));
+}
