@@ -17,6 +17,12 @@ while [[ $# -gt 0 ]]; do
         exit 1
       fi
       cachesize=$2; shift 2;;
+    -l|--cacheline-size)
+      if [[ -z $2 ]]; then
+        die "expected cache line size after $1"
+        exit 1
+      fi
+      cachelinesize=$2; shift 2;;
     -u|--unit-test)
       ninja -C build check-mlir-unit
       exit 0;;
@@ -75,11 +81,18 @@ if [[ -n $failed ]]; then
   exit 1
 fi
 
-# Give a default cache size.
+# Give a default cache(-line) size.
 if [[ -z $cachesize ]]; then
   if [[ -n $testcase || -n $simul ]]; then
     cachesize=4
     warn "cache size not specified, default to $cachesize"
+  fi
+fi
+
+if [[ -z $cachelinesize ]]; then
+  if [[ -n $testcase || -n $simul ]]; then
+    cachelinesize=1
+    warn "cacheline size not specified, default to $cachelinesize"
   fi
 fi
 
@@ -101,7 +114,7 @@ if [[ -n $simul ]]; then
   else
     clang++ -O2 $testpath -o a.out
   fi
-  echo $cachesize | ./a.out
+  echo $cachesize $cachelinesize | ./a.out
   rm a.out
   exit 0
 fi
@@ -122,11 +135,11 @@ if [[ -n $testcase ]]; then
   output=$tamper/"$testcase.mlir"
   rm -f $output
   if [[ -n $valgrind ]]; then
-    echo $cachesize | valgrind clang -I$polybench/utilities -emit-cir $testpath -o $output
+    echo $cachesize $cachelinesize | valgrind clang -I$polybench/utilities -emit-cir $testpath -o $output
   elif [[ -n $gdb ]]; then
     gdb --args clang -I$polybench/utilities -emit-cir $testpath -o $output
   else
-    echo $cachesize | clang -I$polybench/utilities -emit-cir $testpath -o $output
+    echo $cachesize $cachelinesize | clang -I$polybench/utilities -emit-cir $testpath -o $output
   fi
   if [[ ! -f $output ]]; then
     die "compilation failed."

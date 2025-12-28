@@ -52,6 +52,7 @@ private:
   friend class LessAccess;
 
   DynamicAPInt cacheSize;
+  int cachelineSize;
   DynamicAPInt compulsoryMisses, capacityMisses;
 };
 
@@ -233,14 +234,148 @@ void addEquality(PresburgerRelation &rel, T eq, int locals=0) {
   rel = rel.intersect(PresburgerRelation(constraint));
 }
 
+IntegerRelation removeUnusedLocals(IntegerRelation rel) {
+  // If a local `e` is like this (the result of a division):
+  //   a - e * c >= 0
+  //   a - e * c <= e - 1
+  // And `e` is never used, then it is useless.
+  auto offset = rel.getNumDimAndSymbolVars();
+  llvm::SmallVector<int> toremove;
+  auto before = rel;
+  for (unsigned i = 0; i < rel.getNumLocalVars(); i++) {
+    const auto &eq = rel.getEqualities();
+    const auto &ineq = rel.getInequalities();
+    int count = 0;
+    int v[2];
+    bool bad = false;
+    for (unsigned j = 0; j < eq.getNumRows(); j++) {
+      if (eq.getRow(j)[offset + i] != 0) {
+        bad = true;
+        break;
+      }
+    }
+    if (bad)
+      continue;
+
+    for (unsigned j = 0; j < ineq.getNumRows(); j++) {
+      if (ineq.getRow(j)[offset + i] != 0) {
+        if (count >= 2) {
+          bad = true;
+          break;
+        }
+        v[count++] = j;
+      }
+    }
+    if (bad || count != 2)
+      continue;
+
+    // Now check the exact form above.
+    int ks[2] = { -1, -2 };
+    bool zero = false, max = false;
+
+    for (int j = 0; j < 2; j++) {
+      auto row = ineq.getRow(v[j]);
+      bool neg = row[offset + i] < 0;
+      if (row.back() == 0)
+        zero = true;
+      if (row.back() == abs(row[offset + i]) - 1)
+        max = true;
+
+      DynamicAPInt nonzero(0);
+      for (unsigned k = 0; k < offset; k++) {
+        if (row[k] != 0) {
+          if (nonzero != 0) {
+            bad = true;
+            break;
+          }
+          nonzero = row[k];
+          ks[j] = k;
+        }
+      }
+      if (bad)
+        break;
+
+      if ((neg && nonzero != 1) || (!neg && nonzero != -1)) {
+        bad = true;
+        break;
+      }
+    }
+
+    if (bad || ks[0] != ks[1] || !zero || !max)
+      continue;
+
+    // Now we've passed all checks. We can remove this local variable.
+    toremove.push_back(i);
+    // The two inequalities must also be removed.
+    rel.removeInequality(std::min(v[0], v[1]));
+    rel.removeInequality(std::max(v[0], v[1]) - 1);
+  }
+  for (auto x : llvm::reverse(toremove))
+    rel.removeVar(VarKind::Local, x);
+  if (!rel.isEqual(before)) {
+    llvm::errs() << "to remove: "; llvm::interleaveComma(toremove, llvm::errs()); llvm::errs() << "\n"; 
+    llvm::errs() << "before: \n"; before.dump();
+    llvm::errs() << "after: \n"; rel.dump();
+    assert(false && "before and after should be equal");
+  }
+  return rel;
+}
+
+PresburgerRelation extraSimplify(PresburgerRelation rel) {
+  rel = rel.simplify();
+
+  PresburgerRelation result = PresburgerRelation::getEmpty(rel.getSpace());
+  for (const auto &[i, disjunct] : llvm::enumerate(rel.getAllDisjuncts())) {
+    if (disjunct.isIntegerEmpty())
+      continue;
+    bool add = true;
+    for (auto j = i + 1; j < rel.getNumDisjuncts(); j++) {
+      if (disjunct.intersect(rel.getDisjunct(j)).isEqual(disjunct)) {
+        add = false;
+        break;
+      }
+    }
+    if (!add)
+      continue;
+  
+    // Try to convert two inequalities into one equality.
+    IntegerRelation poly(disjunct.getSpace());
+    Simplex simplex(disjunct);
+    for (unsigned i = 0; i < disjunct.getNumInequalities(); i++) {
+      auto maybeMinimum = simplex.computeOptimum(Simplex::Direction::Down, disjunct.getInequality(i));
+      auto maybeMaximum = simplex.computeOptimum(Simplex::Direction::Up, disjunct.getInequality(i));
+      if (!maybeMinimum.isBounded() || !maybeMaximum.isBounded()) {
+        poly.addInequality(disjunct.getInequality(i));
+        continue;
+      }
+      Fraction minimum = maybeMaximum.getBoundedOptimum();
+      Fraction maximum = maybeMaximum.getBoundedOptimum();
+      if (minimum == maximum && minimum == 0)
+        poly.addEquality(disjunct.getInequality(i));
+      else
+        poly.addInequality(disjunct.getInequality(i));
+    }
+    for (unsigned i = 0; i < disjunct.getNumEqualities(); i++)
+      poly.addEquality(disjunct.getEquality(i));
+
+    poly.removeDuplicateDivs();
+    poly.removeTrivialRedundancy();
+    poly.removeRedundantConstraints();
+    assert(poly.isEqual(disjunct));
+    result.unionInPlace(removeUnusedLocals(poly));
+  }
+  return result;
+}
+
 DynamicAPInt countIntPointsWithoutParameters(const PresburgerRelation &rel) {
   // If `rel` is empty, then `countIntegerPoints` will return empty
   // quasi-linear affine functions.
   // To avoid the hassle later, we deal with the special case here.
+  assert(rel.getNumSymbolVars() == 0);
   if (rel.isIntegerEmpty())
     return DynamicAPInt(0);
 
-  auto v = countIntegerPoints(rel);
+  auto v = countIntegerPoints(rel.computeReprWithOnlyDivLocals());
   unsigned chamberCount = 0;
   Fraction value;
   for (const auto &[chamber, result] : v) {
@@ -463,7 +598,7 @@ PresburgerRelation ComputeDeps::getDeps(Operation *sink, Operation *depp) {
   unsigned depDims = depMap.getNumDims();
   unsigned srcDims = getDimension(getGEP(sink));
   unsigned dims = depDims + srcDims;
-  PresburgerSpace space = PresburgerSpace::getSetSpace(dims, 0);
+  PresburgerSpace space = PresburgerSpace::getSetSpace(dims);
 
   // Let's use the name S for the `sink` statement, and D for its dependence,
   // i.e. `dep`.
@@ -479,23 +614,24 @@ PresburgerRelation ComputeDeps::getDeps(Operation *sink, Operation *depp) {
     /*numReservedCols=*/space.getNumVars() + 1, space);
   
   // All offsets must be equal.
+  // For the last dimension, the conditoin changes to "offset divided by cacheline size must be equal".
   auto sinkMap = getMap(getGEP(sink));
   assert(depMap.getNumResults() == sinkMap.getNumResults());
-  for (unsigned i = 0; i < depMap.getNumResults(); i++) {
+  for (unsigned i = 0; i < depMap.getNumResults() - 1; i++) {
     auto depCoeff = extractCoefficients(depMap.getResult(i), {}, depDims);
-    auto equality = extractCoefficients(sinkMap.getResult(i), {}, srcDims);
+    auto srcCoeff = extractCoefficients(sinkMap.getResult(i), {}, srcDims);
 
     // Concatenate the coefficients together, and pay special attention to constants
     // at the end.
     auto eqConstant = depCoeff.back();
-    equality.pop_back();
+    srcCoeff.pop_back();
     for (auto coeff : depCoeff)
-      equality.push_back(-coeff);
-    equality.back() += eqConstant;
+      srcCoeff.push_back(-coeff);
+    srcCoeff.back() += eqConstant;
 
-    depend.addEquality(equality);
+    depend.addEquality(srcCoeff);
   }
-
+  
   // Add bound constraints.
   // An extra element (the last one) for the constant.
   addBounds(depend, *getLoopBounds(sink), dims, 0);
@@ -504,6 +640,42 @@ PresburgerRelation ComputeDeps::getDeps(Operation *sink, Operation *depp) {
   // `dep` must be lexicographically before `sink`.
   PresburgerRelation rel = PresburgerRelation::getEmpty(depend.getSpace().getSpaceWithoutLocals());
   addLexLess(rel, depend, depp, sink, depDims, srcDims);
+
+  // Special case for the last dimension.
+  // a floordiv c == b floordiv c
+  //   <=> \exists e. 0 <= a - e * c <= c - 1, 0 <= b - e * c <= c - 1.
+  // So we must introduce a local here.
+  for (auto &disjunct : rel.getAllDisjuncts()) {
+    disjunct.insertVar(VarKind::Local, 0);
+
+    unsigned i = depMap.getNumResults() - 1;
+    auto depCoeff = extractCoefficients(depMap.getResult(i), {}, depDims);
+    auto srcCoeff = extractCoefficients(sinkMap.getResult(i), {}, srcDims);
+    IntVector ineq(srcDims + depDims + 2);
+
+    // The >= 0 part for `dep`.
+    std::copy(depCoeff.begin(), depCoeff.end(), ineq.begin() + srcDims);
+    ineq[depDims + srcDims] = -cachelineSize;
+    ineq.back() = 0;
+    disjunct.addInequality(ineq);
+    // The <= c - 1 part for `dep`.
+    for (auto &x : ineq)
+      x *= -1;
+    ineq.back() = cachelineSize - 1;
+    disjunct.addInequality(ineq);
+
+    // The >= 0 part for `src`.
+    ineq.clear(); ineq.resize(dims + 2);
+    std::copy(srcCoeff.begin(), srcCoeff.end(), ineq.begin());
+    ineq[depDims + srcDims] = -cachelineSize;
+    ineq.back() = 0;
+    disjunct.addInequality(ineq);
+    // The <= c - 1 part for `src`.
+    for (auto &x : ineq)
+      x *= -1;
+    ineq.back() = cachelineSize - 1;
+    disjunct.addInequality(ineq);
+  }
   
   // Record this in the map.
   // Note that we can't use `deps[dep] = rel`, because operator[]
@@ -611,7 +783,10 @@ void ComputeDeps::runOnSink(Operation *sink) {
   PresburgerRelation depsTotal = PresburgerRelation::getEmpty(totalSpace);
   for (const auto &[statement, relation] : depsIndividual) {
     for (const auto &disjunct : relation.getAllDisjuncts()) {
+
       IntegerRelation newRel(totalSpace);
+      newRel.insertVar(VarKind::Local, 0);
+
       ArrayRef loopParent = loopParents[statement];
       SmallVector<Operation*> loopParentReversed(loopParent.size());
       std::copy(loopParent.rbegin(), loopParent.rend(), loopParentReversed.begin());
@@ -623,7 +798,7 @@ void ComputeDeps::runOnSink(Operation *sink) {
       // Add equalities for this statement, that constrains loop
       // variable indices.
       for (auto [i, index] : llvm::enumerate(indices)) {
-        SmallVector<DynamicAPInt> equality(commonDims + 1);
+        SmallVector<DynamicAPInt> equality(commonDims + 2);
         equality[srcDims + i * 2] = 1;
         equality.back() = -index;
         newRel.addEquality(equality);
@@ -634,7 +809,7 @@ void ComputeDeps::runOnSink(Operation *sink) {
       // Note the second-to-last entry, i.e. the last dimension is 
       // reserved for statement index, which is always present.
       for (unsigned i = indices.size() * 2 + srcDims; i < commonDims - 1; i++) {
-        SmallVector<DynamicAPInt> equality(commonDims + 1);
+        SmallVector<DynamicAPInt> equality(commonDims + 2);
         equality[i] = 1;
         newRel.addEquality(equality);
       }
@@ -645,14 +820,14 @@ void ComputeDeps::runOnSink(Operation *sink) {
       index2Statement[indices] = statement;
 
       // An additional equality that specifies the statement id.
-      SmallVector<DynamicAPInt> equality(commonDims + 1);
+      SmallVector<DynamicAPInt> equality(commonDims + 2);
       equality[commonDims - 1] = 1;
       equality.back() = -statementId;
       newRel.addEquality(equality);
 
       const auto &raiseToCommonSpace = [&](const IntMatrix &matrix, bool isEquality) {
         for (unsigned i = 0; i < matrix.getNumRows(); i++) {
-          SmallVector<DynamicAPInt> newRow(commonDims + 1);
+          SmallVector<DynamicAPInt> newRow(commonDims + 2);
           auto row = matrix.getRow(i);
 
           // The first `srcDims` elements are the same across all relations.
@@ -660,7 +835,7 @@ void ComputeDeps::runOnSink(Operation *sink) {
             newRow[j] = row[j];
 
           // The rest needs to be mapped to their correct position.
-          for (unsigned j = srcDims; j < row.size() - 1; j++) {
+          for (unsigned j = srcDims; j < row.size() - 2; j++) {
             // This is the (j - srcDims)'th outermost loop.
             // As loopParent goes from inner to outer, we need
             // to use its reversed version.
@@ -670,7 +845,8 @@ void ComputeDeps::runOnSink(Operation *sink) {
             newRow[index] = row[j];
           }
 
-          // Copy the constants.
+          // Copy the local and constant.
+          newRow[commonDims] = row[row.size() - 2];
           newRow.back() = row.back();
 
           if (isEquality)
@@ -683,6 +859,7 @@ void ComputeDeps::runOnSink(Operation *sink) {
       raiseToCommonSpace(disjunct.getEqualities(), true);
       raiseToCommonSpace(disjunct.getInequalities(), false);
       newRel.simplify();
+      
       depsTotal.unionInPlace(newRel);
     }
   }
@@ -691,28 +868,15 @@ void ComputeDeps::runOnSink(Operation *sink) {
   PWMAFunction deps = lexmax.lexopt;
   deps.simplify();
   assert(lexmax.unboundedDomain.isIntegerEmpty());
-
-  PresburgerRelation untouched(sinkDomain);
-  for (const auto &piece : deps.getAllPieces())
-    untouched = untouched.subtract(piece.domain);
-  untouched = untouched.simplify();
   
   // The number of compulsory misses is equal to the number of integer points in `untouched`,
   // composed with the access function.
-  auto sinkMap = getMap(getGEP(sink));
-  auto arrDims = sinkMap.getNumResults();
-  IntegerRelation sinkAccess(PresburgerSpace::getRelationSpace(srcDims, arrDims));
-  for (unsigned i = 0; i < arrDims; i++) {
-    auto sinkCoeffs = extractCoefficients(sinkMap.getResult(i), {}, srcDims);
-    sinkCoeffs.resize(srcDims + arrDims + 1);
-    // Move the constant to the back.
-    sinkCoeffs[srcDims + arrDims] = sinkCoeffs[srcDims];
-    sinkCoeffs[srcDims] = 0;
-    // Get an -1 at the proper place.
-    sinkCoeffs[srcDims + i] = -1;
-    sinkAccess.addEquality(sinkCoeffs);
-  }
-  untouched.compose(PresburgerRelation(sinkAccess));
+  // We know the access function is injective, so the composition will not change integer points count.
+  // Hence we omit it here.
+  PresburgerRelation untouched(sinkDomain);
+  for (const auto &piece : deps.getAllPieces())
+    untouched = untouched.subtract(piece.domain);
+
   untouched = untouched.simplify().computeReprWithOnlyDivLocals();
   compulsoryMisses += countIntPointsWithoutParameters(untouched);
 
@@ -840,7 +1004,7 @@ void ComputeDeps::runOnSink(Operation *sink) {
       domainCopy.convertVarKind(VarKind::Range, 0, srcDims, VarKind::Domain, 0);
       // Then we insert `uDims` dummy (unconstrained) variables as range.
       domainCopy.insertVarInPlace(VarKind::Range, 0, uDims);
-      base = base.intersect(domainCopy).simplify();
+      base = extraSimplify(base.intersect(domainCopy));
 
       // Now we handle the side deps(S(v_s)) < u(p).
       //
@@ -894,7 +1058,7 @@ void ComputeDeps::runOnSink(Operation *sink) {
         }
       }
 
-      for (unsigned i = 0; i < std::max(uDims, depDims); i++) {
+      for (unsigned i = 0; i <= std::max(uDims, depDims); i++) {
         if (i >= depth) {
           if (lexIndex[dep] < lexIndex[u])
             reuseInstance.unionInPlace(base);
@@ -925,7 +1089,6 @@ void ComputeDeps::runOnSink(Operation *sink) {
         }
 
         reuseInstance.unionInPlace(copy);
-
         
         for (auto &disjunct : base.getAllDisjuncts()) {
           IntVector eq(disjunct.getNumVars() + 1);
@@ -959,13 +1122,26 @@ void ComputeDeps::runOnSink(Operation *sink) {
       IntegerRelation accessRel(accessSpace);
       for (unsigned i = 0; i < arrDims; i++) {
         auto coeffs = extractCoefficients(accessMap.getResult(0), {}, uDims);
-        coeffs.resize(arrDims + uDims + 1);
+        coeffs.resize(uDims + arrDims + 1);
         // Move constant to the back.
-        coeffs[arrDims + uDims] = coeffs[uDims];
+        coeffs[uDims + arrDims] = coeffs[uDims];
         coeffs[uDims] = 0;
         // Get -1 at the correct place.
-        coeffs[uDims + i] = -1;
-        accessRel.addEquality(coeffs);
+        if (i != arrDims - 1) {
+          coeffs[uDims + i] = -1;
+          accessRel.addEquality(coeffs);
+        } else {
+          // The >= 0 part.
+          coeffs[uDims + arrDims - 1] = -cachelineSize;
+          coeffs[uDims + arrDims] = 0;
+          accessRel.addInequality(coeffs);
+
+          // The <= cachelineSize - 1 part.
+          for (auto &x : coeffs)
+            x *= -1;
+          coeffs[uDims + arrDims] = cachelineSize - 1;
+          accessRel.addInequality(coeffs);
+        }
       }
 
       PresburgerRelation access(accessRel);
@@ -973,6 +1149,7 @@ void ComputeDeps::runOnSink(Operation *sink) {
       if (reuseInstance.isIntegerEmpty())
         continue;
 
+      reuseInstance = extraSimplify(reuseInstance);
       reuseInstance = reuseInstance.computeReprWithOnlyDivLocals().simplify();
 
       // Clang IR doesn't use block arguments, so it's fine.
@@ -998,7 +1175,8 @@ void ComputeDeps::oldCountCapacityMisses(const PresburgerRelation &domain, Dense
     // We hope to calculate the function that maps v_s to the cardinality
     // of this set, so we can view v_s as parameters and count the set.
     total.convertVarKind(VarKind::Domain, 0, srcDims, VarKind::Symbol, 0);
-    total = total.simplify();
+    total = extraSimplify(total);
+    total = total.computeReprWithOnlyDivLocals().simplify();
     auto result = countIntegerPoints(total);
 
     for (const auto &[region, count] : result) {
@@ -1080,8 +1258,7 @@ void ComputeDeps::countCapacityMisses(const PresburgerRelation &domain, DenseMap
     // about *unique* accesses for each address.
     assert(!reuses.empty());
     z++;
-    for (unsigned i = 0, e = reuses.size(); i < e; i++) {
-      auto reuse = reuses[i];
+    for (const auto &reuse : reuses) {
       assert(reuse.getNumSymbolVars() == 0);
       assert(reuse.getNumDomainVars() == srcDims);
 
@@ -1128,9 +1305,9 @@ void ComputeDeps::countCapacityMisses(const PresburgerRelation &domain, DenseMap
   // between v_s and deps.
   // We hope to calculate the function that maps v_s to the cardinality
   // of this set, so we can view v_s as parameters and count the set.
-  disjointUnion = disjointUnion.simplify();
+  disjointUnion = extraSimplify(disjointUnion);
   disjointUnion.convertVarKind(VarKind::Domain, 0, srcDims, VarKind::Symbol, 0);
-  auto result = countIntegerPoints(disjointUnion);
+  auto result = countIntegerPoints(disjointUnion.computeReprWithOnlyDivLocals());
 
   for (const auto &[region, count] : result) {
     if (region.isIntegerEmpty())
@@ -1160,16 +1337,18 @@ void ComputeDeps::countCapacityMisses(const PresburgerRelation &domain, DenseMap
       // A single affine expression.
       if (affine.size() == 1) {
         const auto &expr = affine[0];
-        if (!std::all_of(expr.begin(), expr.end(), [](const Fraction &f) { return f.num % f.den == 0; })) {
+        auto coeff = count.getCoefficients()[i];
+        if (coeff.num % coeff.den != 0 || !std::all_of(expr.begin(), expr.end(), [](const Fraction &f) { return f.num % f.den == 0; })) {
           barvinokable = false;
           break;
         }
         assert(expr.size() == srcDims + 1);
         for (unsigned i = 0; i < srcDims + 1; i++)
-          ineq[i] += expr[i].getAsInteger();
+          ineq[i] += coeff.getAsInteger() * expr[i].getAsInteger();
       }
     }
     if (!barvinokable) {
+      llvm::errs() << "enumerate triggered\n";
       auto divonly = region.computeReprWithOnlyDivLocals();
       std::set<std::vector<DynamicAPInt>> feasiblePoints;
       std::vector<DynamicAPInt> current;
@@ -1202,7 +1381,7 @@ void ComputeDeps::runOnOperation() {
 
   // For testing purposes.
   int cacheInput;
-  scanf("%d", &cacheInput);
+  scanf("%d%d", &cacheInput, &cachelineSize);
   cacheSize = cacheInput;
 
   auto getelems = findRelevant(); 

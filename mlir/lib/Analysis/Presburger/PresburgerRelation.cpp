@@ -314,7 +314,7 @@ PresburgerRelation PresburgerRelation::computeReprWithOnlyDivLocals() const {
 
   // The result is just the union of the reprs of the disjuncts.
   PresburgerRelation result(getSpace());
-  for (const IntegerRelation &disjunct : disjuncts)
+  for (const auto &[i, disjunct] : llvm::enumerate(disjuncts))
     result.unionInPlace(disjunct.computeReprWithOnlyDivLocals());
   return result;
 }

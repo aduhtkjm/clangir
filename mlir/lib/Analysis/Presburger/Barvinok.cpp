@@ -518,10 +518,8 @@ std::pair<IntegerRelation, PolyhedronH> mlir::presburger::detail::projectToFullD
   for (unsigned i = 0; i < poly.getNumEqualities(); i++)
     newpoly.addEquality(poly.getEquality(i));
 
-  assert(!newpoly.isIntegerEmpty() && "1");
   newpoly.simplify();
   newpoly.removeTrivialRedundancy();
-  assert(!newpoly.isIntegerEmpty() && "2");
   auto result = eliminateEqualities(newpoly);
   if (getAffineHull(result.second).getNumRows() != 0) {
     auto [constraint, r] = projectToFullDimension(result.second);
