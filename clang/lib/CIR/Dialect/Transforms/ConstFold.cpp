@@ -46,6 +46,9 @@ mlir::LogicalResult foldBinary(BinOp op) {
   case BinOpKind::Mul:
     result = IntAttr::get(op.getResult().getType(), lhs * rhs);
     break;
+  case BinOpKind::Div:
+    result = IntAttr::get(op.getResult().getType(), lhs / rhs);
+    break;
   default:
     return mlir::failure();
   }

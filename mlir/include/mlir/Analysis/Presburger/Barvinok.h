@@ -126,7 +126,7 @@ std::vector<std::pair<int, ConeH>> unimodularDecompose(const ConeH & tangentCone
 /// The returned list partitions the universe into parts depending on which
 /// subset of GFs is active there, and gives the sum of active GFs for each
 /// part.
-std::vector<std::pair<PresburgerSet, GeneratingFunction>>
+std::vector<std::pair<PresburgerRelation, GeneratingFunction>>
 computeChamberDecomposition(
     unsigned numSymbols, ArrayRef<std::pair<PresburgerSet, GeneratingFunction>>
                              regionsAndGeneratingFunctions);
@@ -134,7 +134,7 @@ computeChamberDecomposition(
 /// Compute the generating function corresponding to a polytope.
 ///
 /// All tangent cones of the polytope must be unimodular.
-std::vector<std::pair<PresburgerSet, GeneratingFunction>>
+std::vector<std::pair<PresburgerRelation, GeneratingFunction>>
 computePolytopeGeneratingFunction(const PolyhedronH &poly);
 
 /// Find a vector that is not orthogonal to any of the given vectors,

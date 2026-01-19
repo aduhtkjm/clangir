@@ -108,6 +108,9 @@ public:
     return result;
   }
 
+  /// Creates a rational representation of the fractional matrix.
+  static IntegerRelation getRational(const PresburgerSpace &space, const FracMatrix &ineq);
+
   /// Return the kind of this IntegerRelation.
   virtual Kind getKind() const { return Kind::IntegerRelation; }
 
@@ -949,12 +952,7 @@ public:
   /// and adds the given inequalities, after normalizing row-wise to integer
   /// values.
   explicit IntegerPolyhedron(const PresburgerSpace &space,
-                             const FracMatrix &inequalities)
-      : IntegerPolyhedron(space) {
-    IntMatrix ineqsNormalized = inequalities.normalizeRows();
-    for (unsigned i = 0, e = inequalities.getNumRows(); i < e; i++)
-      addInequality(ineqsNormalized.getRow(i));
-  }
+                             const FracMatrix &inequalities);
 
   /// Construct a set from an IntegerRelation. The relation should have
   /// no domain vars.

@@ -100,7 +100,8 @@ polybench=../polybench
 tamper=../tamper
 if [[ -n $newtest ]]; then
   if [[ $newtest != *.* ]]; then
-    newtest=$newtest.cpp
+    die "must specify suffix when creating a file"
+    exit 1
   fi
   code $tamper/test/$newtest
   exit 0

@@ -718,6 +718,14 @@ TEST(IntegerRelationTest, simplify) {
   EXPECT_TRUE(rel.getNumEqualities() == 2);
 }
 
+TEST(IntegerRelationTest, isFullDim) {
+  IntegerRelation rel = parseRelationFromSet("(x): (1 >= 0)", 1);
+  EXPECT_TRUE(rel.isFullDim());
+
+  rel = parseRelationFromSet("(x): (-1 >= 0)", 1);
+  EXPECT_FALSE(rel.isFullDim());
+}
+
 TEST(IntegerRelationTest, simplify2) {
   IntegerRelation rel(PresburgerSpace::getRelationSpace(0, 6));
   rel.addEquality({  -1,  0,  0,  0,  0,  3,  0}); 

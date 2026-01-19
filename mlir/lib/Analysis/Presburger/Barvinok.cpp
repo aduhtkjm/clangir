@@ -775,7 +775,7 @@ std::vector<std::pair<int, ConeH>> mlir::presburger::detail::unimodularDecompose
 /// generating functions the region that (the sum of) precisely this subset is
 /// in, is the intersection of the regions that these are active in,
 /// intersected with the complements of the remaining regions.
-std::vector<std::pair<PresburgerSet, GeneratingFunction>>
+std::vector<std::pair<PresburgerRelation, GeneratingFunction>>
 mlir::presburger::detail::computeChamberDecomposition(
     unsigned numSymbols, ArrayRef<std::pair<PresburgerSet, GeneratingFunction>>
                              regionsAndGeneratingFunctions) {
@@ -783,8 +783,8 @@ mlir::presburger::detail::computeChamberDecomposition(
          "there must be at least one chamber!");
   // We maintain a list of regions and their associated generating function
   // initialized with the universe and the empty generating function.
-  std::vector<std::pair<PresburgerSet, GeneratingFunction>> chambers = {
-      {PresburgerSet::getUniverse(PresburgerSpace::getSetSpace(numSymbols)),
+  std::vector<std::pair<PresburgerRelation, GeneratingFunction>> chambers = {
+      {PresburgerSet::getUniverse(PresburgerSpace::getSetSpace(numSymbols + 1)),
        GeneratingFunction(numSymbols, {}, {}, {})}};
 
   // We iterate over the region list.
@@ -803,30 +803,61 @@ mlir::presburger::detail::computeChamberDecomposition(
   //
   // The loop has the invariant that the union over all the chambers gives the
   // universe at every step.
-  for (const auto &[region, generatingFunction] :
-       regionsAndGeneratingFunctions) {
-    std::vector<std::pair<PresburgerSet, GeneratingFunction>> newChambers;
+  for (const auto &[region, gf] : regionsAndGeneratingFunctions) {
+    std::vector<std::pair<PresburgerRelation, GeneratingFunction>> newChambers;
+    // llvm::errs() << "looking at region: "; region.dump();
 
-    for (const auto &[currentRegion, currentGeneratingFunction] : chambers) {
-      PresburgerSet intersection = currentRegion.intersect(region);
+    for (const auto &[currentRegion, currentGf] : chambers) {
+      PresburgerRelation intersection = currentRegion.intersect(region).simplify();
 
       // If the intersection is not full-dimensional, we do not modify
       // the chamber list.
       if (!intersection.isFullDim()) {
-        newChambers.emplace_back(currentRegion, currentGeneratingFunction);
+        newChambers.emplace_back(currentRegion, currentGf);
         continue;
       }
 
       // If it is, we add the intersection and the difference as chambers.
-      newChambers.emplace_back(intersection,
-                               currentGeneratingFunction + generatingFunction);
-      newChambers.emplace_back(currentRegion.subtract(region),
-                               currentGeneratingFunction);
+      PresburgerRelation diff = currentRegion.subtract(region).simplify();
+      newChambers.emplace_back(intersection, currentGf + gf);
+      newChambers.emplace_back(diff, currentGf);
     }
     chambers = std::move(newChambers);
   }
 
-  return chambers;
+  // We must convert the rational representation back into integers.
+  // Remember that the representation is Ax' + bd + k >= 0 for a denominator `d`;
+  // we only need to divide the denominator `d` and convert them back to Ax + b + k / d >= 0.
+  // Since d is unknown and can be arbitrarily large, `k / d` reduces to -1 if `k < 0`,
+  // and 0 otherwise.
+  std::vector<std::pair<PresburgerRelation, GeneratingFunction>> result;
+  for (const auto &[region, gf] : chambers) {
+    if (region.isIntegerEmpty())
+      continue;
+    
+    auto converted = PresburgerRelation::getEmpty(PresburgerSpace::getSetSpace(numSymbols));
+    for (auto &disjunct : region.getAllDisjuncts()) {
+      assert(disjunct.getNumEqualities() == 0);
+      // llvm::errs() << "before: "; disjunct.dump();
+
+      IntegerRelation result(PresburgerSpace::getRelationSpace(0, numSymbols, 0, disjunct.getNumLocalVars()));
+      auto dDim = result.getNumDomainVars() + result.getNumRangeVars();
+      SmallVector<DynamicAPInt> add(result.getNumVars() + 1);
+      for (unsigned i = 0, e = disjunct.getNumInequalities(); i < e; i++) {
+        auto ineq = disjunct.getInequality(i);
+        std::copy(ineq.begin(), ineq.end() - 2, add.begin());
+        add.back() = ineq[dDim] + (ineq.back() >= 0 ? 0 : -1);
+        result.addInequality(add);
+      }
+
+      // llvm::errs() << "after: "; result.dump();
+      converted.unionInPlace(result);
+    }
+    result.emplace_back(converted, gf);
+    // llvm::errs() << "final region: "; converted.dump();
+    // llvm::errs() << "final gf: "; gf.dump(); llvm::errs() << "\n";
+  }
+  return result;
 }
 
 /// For a polytope expressed as a set of n inequalities, compute the generating
@@ -848,7 +879,7 @@ mlir::presburger::detail::computeChamberDecomposition(
 /// Verdoolaege, Sven, et al. "Counting integer points in parametric
 /// polytopes using Barvinok's rational functions." Algorithmica 48 (2007):
 /// 37-66.
-std::vector<std::pair<PresburgerSet, GeneratingFunction>>
+std::vector<std::pair<PresburgerRelation, GeneratingFunction>>
 mlir::presburger::detail::computePolytopeGeneratingFunction(
     const PolyhedronH &poly) {
   unsigned numVars = poly.getNumRangeVars();
@@ -937,8 +968,10 @@ mlir::presburger::detail::computePolytopeGeneratingFunction(
 
     // We convert the representation of the active region to an integers-only
     // form so as to store it as a PresburgerSet.
-    IntegerPolyhedron activeRegionRel(
+    auto activeRegionRel = IntegerRelation::getRational(
         PresburgerSpace::getRelationSpace(0, numSymbols, 0, 0), activeRegion);
+    if (activeRegionRel.isIntegerEmpty())
+      continue;
 
     // Now, we compute the generating function at this vertex.
     // We collect the inequalities corresponding to each vertex to compute
@@ -966,7 +999,7 @@ mlir::presburger::detail::computePolytopeGeneratingFunction(
     }
     // We store the vertex we computed with the generating function of its
     // tangent cone.
-    regionsAndGeneratingFunctions.emplace_back(PresburgerSet(activeRegionRel),
+    regionsAndGeneratingFunctions.emplace_back(PresburgerRelation(activeRegionRel),
                                                vertexGf);
   } while (std::next_permutation(indicator.begin(), indicator.end()));
 

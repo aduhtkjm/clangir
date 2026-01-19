@@ -185,6 +185,7 @@ Fraction QuasiPolynomial::evaluate(ArrayRef<DynamicAPInt> x) const {
   for (unsigned i = 0; i < affine.size(); i++) {
     Fraction term = 1;
     for (ArrayRef<Fraction> xCoeffs : affine[i]) {
+      assert(x.size() == xCoeffs.size() - 1);
       Fraction sum = std::inner_product(x.begin(), x.end(), xCoeffs.begin(), Fraction());
       term *= floor(sum + xCoeffs.back());
     }

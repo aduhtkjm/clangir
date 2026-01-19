@@ -364,7 +364,7 @@ PresburgerRelation extraSimplify(PresburgerRelation rel) {
     assert(poly.isEqual(disjunct));
     result.unionInPlace(removeUnusedLocals(poly));
   }
-  return result;
+  return result.simplify();
 }
 
 DynamicAPInt countIntPointsWithoutParameters(const PresburgerRelation &rel) {
@@ -887,7 +887,7 @@ void ComputeDeps::runOnSink(Operation *sink) {
     if (piece.domain.isIntegerEmpty())
       continue;
 
-    auto domain = piece.domain.simplify();
+    auto domain = extraSimplify(piece.domain);
     auto output = piece.output;
     unsigned locals = output.getNumDivs();
     
@@ -1121,7 +1121,7 @@ void ComputeDeps::runOnSink(Operation *sink) {
       auto accessSpace = PresburgerSpace::getRelationSpace(uDims, arrDims);
       IntegerRelation accessRel(accessSpace);
       for (unsigned i = 0; i < arrDims; i++) {
-        auto coeffs = extractCoefficients(accessMap.getResult(0), {}, uDims);
+        auto coeffs = extractCoefficients(accessMap.getResult(i), {}, uDims);
         coeffs.resize(uDims + arrDims + 1);
         // Move constant to the back.
         coeffs[uDims + arrDims] = coeffs[uDims];
@@ -1158,87 +1158,6 @@ void ComputeDeps::runOnSink(Operation *sink) {
 
     countCapacityMisses(domain, instances);
   } // for each piece of lexmax
-}
-
-void ComputeDeps::oldCountCapacityMisses(const PresburgerRelation &domain, DenseMap<Operation *, std::vector<PresburgerRelation>> &instances) {
-  auto srcDims = domain.getNumRangeVars();
-  for (const auto &[_, reuses] : instances) {
-    // We must union the relations for the same array, because we only care
-    // about *unique* accesses for each address.
-    assert(!reuses.empty());
-    PresburgerRelation total = reuses[0];
-    for (unsigned i = 1, e = reuses.size(); i < e; i++)
-      total.unionInPlace(reuses[i]);
-
-    // Now for each v_s, `total` gives a set of addresses that `u` has accessed
-    // between v_s and deps.
-    // We hope to calculate the function that maps v_s to the cardinality
-    // of this set, so we can view v_s as parameters and count the set.
-    total.convertVarKind(VarKind::Domain, 0, srcDims, VarKind::Symbol, 0);
-    total = extraSimplify(total);
-    total = total.computeReprWithOnlyDivLocals().simplify();
-    auto result = countIntegerPoints(total);
-
-    for (const auto &[region, count] : result) {
-      if (region.isIntegerEmpty())
-        continue;
-
-      // Determine whether `count` exceeds cache size in this region.
-      // The space here has only |v_s| range variables.
-      PresburgerRelation rel(region);
-      IntegerRelation exceed(region.getSpace());
-      assert(region.getSpace().getNumVars() == srcDims);
-
-      SmallVector<DynamicAPInt> ineq(srcDims + 1);
-      bool barvinokable = true;
-      for (unsigned i = 0, e = count.getCoefficients().size(); i < e; i++) {
-        auto coeff = count.getCoefficients()[i];
-        auto affine = count.getAffine()[i];
-        if (affine.size() > 1) {
-          barvinokable = false;
-          break;
-        }
-        
-        // A constant.
-        if (affine.size() == 0)
-          ineq.back() += coeff.getAsInteger();
-
-        // A single affine expression.
-        if (affine.size() == 1) {
-          const auto &expr = affine[0];
-          if (!std::all_of(expr.begin(), expr.end(), [](const Fraction &f) { return f.num % f.den == 0; })) {
-            barvinokable = false;
-            break;
-          }
-          assert(expr.size() == srcDims + 1);
-          for (unsigned i = 0; i < srcDims + 1; i++)
-            ineq[i] += expr[i].getAsInteger();
-        }
-      }
-      if (!barvinokable) {
-        auto divonly = region.computeReprWithOnlyDivLocals();
-        std::set<std::vector<DynamicAPInt>> feasiblePoints;
-        std::vector<DynamicAPInt> current;
-
-        for (const auto &disjunct : divonly.getAllDisjuncts())
-          enumerateFeasiblePoints(disjunct, feasiblePoints, current);
-        
-        for (const auto &point : feasiblePoints) {
-          if (count.evaluate(point) >= cacheSize)
-            capacityMisses += 1;
-        }
-        continue;
-      }
-
-      ineq.back() -= cacheSize;
-      exceed.addInequality(ineq);
-      rel = rel.intersect(domain);
-      rel = rel.intersect(PresburgerRelation(exceed)).simplify();
-
-      auto misses = countIntPointsWithoutParameters(rel);
-      capacityMisses += misses;
-    }
-  }
 }
 
 void ComputeDeps::countCapacityMisses(const PresburgerRelation &domain, DenseMap<Operation *, std::vector<PresburgerRelation>> &instances) {
@@ -1310,7 +1229,8 @@ void ComputeDeps::countCapacityMisses(const PresburgerRelation &domain, DenseMap
   auto result = countIntegerPoints(disjointUnion.computeReprWithOnlyDivLocals());
 
   for (const auto &[region, count] : result) {
-    if (region.isIntegerEmpty())
+    auto intersect = region.intersect(domain);
+    if (intersect.isIntegerEmpty())
       continue;
 
     SmallVector<DynamicAPInt> ineq(srcDims + 1);
@@ -1318,7 +1238,6 @@ void ComputeDeps::countCapacityMisses(const PresburgerRelation &domain, DenseMap
 
     // Determine whether `count` exceeds cache size in this region.
     // The space here has only |v_s| range variables.
-    PresburgerRelation rel(region);
     IntegerRelation exceed(region.getSpace());
     assert(region.getSpace().getNumVars() == srcDims);
 
@@ -1348,8 +1267,8 @@ void ComputeDeps::countCapacityMisses(const PresburgerRelation &domain, DenseMap
       }
     }
     if (!barvinokable) {
-      llvm::errs() << "enumerate triggered\n";
-      auto divonly = region.computeReprWithOnlyDivLocals();
+      // llvm::errs() << "enumerate triggered\n";
+      auto divonly = intersect.computeReprWithOnlyDivLocals();
       std::set<std::vector<DynamicAPInt>> feasiblePoints;
       std::vector<DynamicAPInt> current;
 
@@ -1357,23 +1276,73 @@ void ComputeDeps::countCapacityMisses(const PresburgerRelation &domain, DenseMap
         enumerateFeasiblePoints(disjunct, feasiblePoints, current);
       
       for (const auto &point : feasiblePoints) {
-        if (count.evaluate(point) >= cacheSize)
+        if (count.evaluate(point) >= cacheSize) {
           capacityMisses += 1;
+        }
       }
       continue;
     }
 
     ineq.back() -= cacheSize;
     exceed.addInequality(ineq);
-    rel = rel.intersect(domain);
-    rel = rel.intersect(PresburgerRelation(exceed)).simplify();
+    PresburgerRelation rel = intersect.intersect(PresburgerRelation(exceed)).simplify();
 
     auto misses = countIntPointsWithoutParameters(rel);
+    if (0) {
+      llvm::errs() << "region = "; region.dump();
+      llvm::errs() << "count = "; count.dump(); llvm::errs() << "\n";
+      llvm::errs() << "misses = " << misses << "\n";
+    }
     capacityMisses += misses;
   }
 }
 
 void ComputeDeps::runOnOperation() {
+/*
+(N = 3, M = 4)
+
+2i <= M <= 2i + 1,    ==> i = 2
+2j <= M <= 2j + 1,    ==> j = 2
+2j >= N + 1           ==> 4 >= 4
+2j + N - 2M + 2 >= 0  ==> 4 + 3 - 8 + 2 = 1 >= 0
+
+N + 1 <= M < N + 2
+*/
+
+  // IntegerRelation rel(PresburgerSpace::getRelationSpace(0, 2, 2));
+  // rel.addInequality({ -2, 0, 0, 1, 0 });
+  // rel.addInequality({ 2, 0, 0, -1, 1 });
+  // rel.addInequality({ 0, 2, 0, -1, 1 });
+  // rel.addInequality({ 0, -2, 0, 1, 0 });
+  // rel.addInequality({ 0, 2, -1, 0, -1 });
+  // rel.addInequality({ 0, 2, 1, -2, 2 });
+
+/*
+(N = 5, M = 2)
+
+2j <= N <= 2j + 1           ==> j = 2
+2i + 1 <= N <= 2i + 2       ==> i = 1
+2N - 2j - M >= 3            ==> 10 - 4 - 2 >= 3 (false)
+*/
+
+  // IntegerRelation rel(PresburgerSpace::getRelationSpace(0, 2, 2));
+  // rel.addInequality({  0,  2, -1,  0,  1, });
+  // rel.addInequality({  0, -2,  1,  0,  0, });
+  // rel.addInequality({  0, -2,  2, -1, -3, });
+  // rel.addInequality({ -2,  0,  1,  0, -1, });
+  // rel.addInequality({  2,  0, -1,  0,  2, });
+
+  // auto result = countIntegerPoints(rel.computeReprWithOnlyDivLocals());
+  // for (const auto &[region, count] : result) {
+  //   if (!region.containsPoint({ 3, 4 }))
+  //     continue;
+  //   llvm::errs() << "region = "; region.dump(); llvm::errs() << "\n";
+  //   llvm::errs() << "count = "; count.dump(); llvm::errs() << "\n";
+  //   llvm::errs() << "value = " << count.evaluate({ DynamicAPInt(3), DynamicAPInt(4) });
+  //   llvm::errs() << "\n";
+  // }
+
+  // return;
   auto *module = getOperation();
   markLexicalOrder();
   unsigned nextIndex = 1;

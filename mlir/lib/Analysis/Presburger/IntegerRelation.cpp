@@ -49,6 +49,36 @@ std::unique_ptr<IntegerPolyhedron> IntegerPolyhedron::clone() const {
   return std::make_unique<IntegerPolyhedron>(*this);
 }
 
+IntegerRelation IntegerRelation::getRational(const PresburgerSpace &space, const FracMatrix &ineqs) {
+  auto raised = PresburgerSpace::getRelationSpace(
+    space.getNumDomainVars(), space.getNumRangeVars() + 1, space.getNumSymbolVars(), space.getNumLocalVars());
+  IntegerRelation rel(raised);
+  IntMatrix normalized = ineqs.normalizeRows();
+  auto dims = space.getNumVars();
+  auto dDim = raised.getNumDomainVars() + raised.getNumRangeVars() - 1;
+
+  // For each inequality Ax + b >= 0, where x is intended to be a rational vector,
+  // we introduce a common denominator d >= 1 as a new range variable,
+  // and rewrite it as Ax' + bd >= 0.
+  // 
+  // Here, each x' represents (x / d).
+  for (unsigned i = 0, e = ineqs.getNumRows(); i < e; i++) {
+    auto row = normalized.getRow(i);
+
+    SmallVector<DynamicAPInt> newRow(dims + 2);
+    for (unsigned j = 0; j < dims + 1; j++)
+      newRow[j] = row[j];
+
+    newRow[dims + 1] = 0;
+    rel.addInequality(newRow);
+  }
+  // Add `d - 1 >= 0`.
+  SmallVector<DynamicAPInt> row(dims + 2);
+  row[dDim] = 1; row[dims + 1] = -1;
+  rel.addInequality(row);
+  return rel;
+}
+
 void IntegerRelation::setSpace(const PresburgerSpace &oSpace) {
   assert(space.getNumVars() == oSpace.getNumVars() && "invalid space!");
   space = oSpace;
