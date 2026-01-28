@@ -149,7 +149,7 @@ std::optional<SmallVector<LoopBound>> getLoopBounds(Operation *op) {
       auto upper = affine.getUpperBound();
       auto lower = affine.getLowerBound();
 
-      // We must make sure they refer to known constants.
+      // We must make sure they refer to known constants, or other affine variables.
       if (!isConstantBound(upper) || !isConstantBound(lower)) {
         return std::nullopt;
       }
@@ -368,10 +368,10 @@ PresburgerRelation extraSimplify(PresburgerRelation rel) {
 }
 
 DynamicAPInt countIntPointsWithoutParameters(const PresburgerRelation &rel) {
+  assert(rel.getNumSymbolVars() == 0);
   // If `rel` is empty, then `countIntegerPoints` will return empty
   // quasi-linear affine functions.
   // To avoid the hassle later, we deal with the special case here.
-  assert(rel.getNumSymbolVars() == 0);
   if (rel.isIntegerEmpty())
     return DynamicAPInt(0);
 
@@ -1160,6 +1160,11 @@ void ComputeDeps::runOnSink(Operation *sink) {
   } // for each piece of lexmax
 }
 
+template<class T>
+[[gnu::unused]] static void dumpVector(const T &point) {
+  llvm::errs() << "point = "; llvm::interleaveComma(point, llvm::errs()); llvm::errs() << "\n";
+}
+
 void ComputeDeps::countCapacityMisses(const PresburgerRelation &domain, DenseMap<Operation *, std::vector<PresburgerRelation>> &instances) {
   auto srcDims = domain.getNumRangeVars();
   unsigned maxdim = 0;
@@ -1267,7 +1272,8 @@ void ComputeDeps::countCapacityMisses(const PresburgerRelation &domain, DenseMap
       }
     }
     if (!barvinokable) {
-      // llvm::errs() << "enumerate triggered\n";
+      llvm::errs() << "enumerate triggered\n";
+      llvm::errs() << "count = "; count.dump(); llvm::errs() << "\n";
       auto divonly = intersect.computeReprWithOnlyDivLocals();
       std::set<std::vector<DynamicAPInt>> feasiblePoints;
       std::vector<DynamicAPInt> current;
@@ -1276,9 +1282,8 @@ void ComputeDeps::countCapacityMisses(const PresburgerRelation &domain, DenseMap
         enumerateFeasiblePoints(disjunct, feasiblePoints, current);
       
       for (const auto &point : feasiblePoints) {
-        if (count.evaluate(point) >= cacheSize) {
+        if (count.evaluate(point) >= cacheSize)
           capacityMisses += 1;
-        }
       }
       continue;
     }
@@ -1298,51 +1303,15 @@ void ComputeDeps::countCapacityMisses(const PresburgerRelation &domain, DenseMap
 }
 
 void ComputeDeps::runOnOperation() {
-/*
-(N = 3, M = 4)
-
-2i <= M <= 2i + 1,    ==> i = 2
-2j <= M <= 2j + 1,    ==> j = 2
-2j >= N + 1           ==> 4 >= 4
-2j + N - 2M + 2 >= 0  ==> 4 + 3 - 8 + 2 = 1 >= 0
-
-N + 1 <= M < N + 2
-*/
-
-  // IntegerRelation rel(PresburgerSpace::getRelationSpace(0, 2, 2));
-  // rel.addInequality({ -2, 0, 0, 1, 0 });
-  // rel.addInequality({ 2, 0, 0, -1, 1 });
-  // rel.addInequality({ 0, 2, 0, -1, 1 });
-  // rel.addInequality({ 0, -2, 0, 1, 0 });
-  // rel.addInequality({ 0, 2, -1, 0, -1 });
-  // rel.addInequality({ 0, 2, 1, -2, 2 });
-
-/*
-(N = 5, M = 2)
-
-2j <= N <= 2j + 1           ==> j = 2
-2i + 1 <= N <= 2i + 2       ==> i = 1
-2N - 2j - M >= 3            ==> 10 - 4 - 2 >= 3 (false)
-*/
-
-  // IntegerRelation rel(PresburgerSpace::getRelationSpace(0, 2, 2));
-  // rel.addInequality({  0,  2, -1,  0,  1, });
-  // rel.addInequality({  0, -2,  1,  0,  0, });
-  // rel.addInequality({  0, -2,  2, -1, -3, });
-  // rel.addInequality({ -2,  0,  1,  0, -1, });
-  // rel.addInequality({  2,  0, -1,  0,  2, });
-
-  // auto result = countIntegerPoints(rel.computeReprWithOnlyDivLocals());
-  // for (const auto &[region, count] : result) {
-  //   if (!region.containsPoint({ 3, 4 }))
-  //     continue;
-  //   llvm::errs() << "region = "; region.dump(); llvm::errs() << "\n";
-  //   llvm::errs() << "count = "; count.dump(); llvm::errs() << "\n";
-  //   llvm::errs() << "value = " << count.evaluate({ DynamicAPInt(3), DynamicAPInt(4) });
-  //   llvm::errs() << "\n";
-  // }
-
+  // IntegerRelation rel(PresburgerSpace::getRelationSpace(0, 3));
+  // rel.addInequality({ -1, 0, 0, 8 });
+  // rel.addInequality({ 0, -1, 0, 9 });
+  // rel.addInequality({ 0, 0, 1, -1 });
+  // rel.addInequality({ 0, 1, -1, -2 });
+  // rel.addInequality({ 1, 0, -1, -1 });
+  // llvm::errs() << "int points = " << countIntPointsWithoutParameters(PresburgerRelation(rel)) << "\n";
   // return;
+
   auto *module = getOperation();
   markLexicalOrder();
   unsigned nextIndex = 1;

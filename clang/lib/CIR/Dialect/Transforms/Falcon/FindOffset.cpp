@@ -162,7 +162,7 @@ void FindOffset::findOffsetInFunction(FuncOp func) {
       if (!op)
         return {};
 
-      if (isa<AllocaOp>(op))
+      if (isa<AllocaOp>(op) || isa<GetGlobalOp>(op))
         return { getAffineConstantExpr(0, ctx) };
 
       if (auto cast = dyn_cast<CastOp>(op); cast && cast.getKind() == CastKind::array_to_ptrdecay)
@@ -182,7 +182,7 @@ void FindOffset::findOffsetInFunction(FuncOp func) {
         auto index = calculateOffset(getelem.getStride().getDefiningOp());
         if (base.empty() || index.size() != 1)
           return {};
-        base.back() = base.back() + index[0];
+        base.push_back(index[0]);
         return base;
       }
 

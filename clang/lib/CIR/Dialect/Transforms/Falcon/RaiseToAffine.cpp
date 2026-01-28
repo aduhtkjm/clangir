@@ -140,7 +140,7 @@ void RaiseToAffine::raise(ForOp forOp) {
   auto cmp = dyn_cast<CmpOp>(term.getCondition().getDefiningOp());
 
   // For now, we only deal with the less-than situation.
-  if (!cmp || cmp.getKind() != CmpOpKind::lt)
+  if (!cmp || (cmp.getKind() != CmpOpKind::lt && cmp.getKind() != CmpOpKind::le))
     return;
 
   auto lhs = dyn_cast<LoadOp>(cmp.getLhs().getDefiningOp());
@@ -171,8 +171,9 @@ void RaiseToAffine::raise(ForOp forOp) {
 
   // Create an index cast for the lower and upper bounds.
   OpBuilder builder(forOp);
+  mlir::MLIRContext *ctx = forOp->getContext();
 
-  auto createCast = [&](mlir::Value value) {
+  auto createCast = [&](mlir::Value value, bool addOne) {
     if (auto *def = value.getDefiningOp()) {
       if (def->getParentOp() == forOp)
         def->moveBefore(forOp);
@@ -180,14 +181,17 @@ void RaiseToAffine::raise(ForOp forOp) {
     } else {
       builder.setInsertionPointToStart(value.getParentBlock());
     }
+    if (addOne) {
+      auto one = builder.create<ConstantOp>(value.getLoc(), IntAttr::get(IntType::get(ctx, 32, true), 1));
+      value = builder.create<BinOp>(value.getLoc(), BinOpKind::Add, value, one);
+    }
     auto cast = builder.create<IndexCastOp>(value.getLoc(), value);
     return cast;
   };
 
-  auto upperBound = createCast(ub);
-  auto lowerBound = createCast(lb);
+  auto upperBound = createCast(ub, cmp.getKind() == CmpOpKind::le);
+  auto lowerBound = createCast(lb, false);
 
-  mlir::MLIRContext *ctx = forOp->getContext();
   auto idmap = AffineMap::get(0, 1, getAffineSymbolExpr(0, ctx));
   builder.setInsertionPoint(forOp);
   auto affineFor = builder.create<AffineForOp>(forOp.getLoc(), ValueRange { lowerBound }, idmap, ValueRange { upperBound }, idmap, step);

@@ -247,7 +247,7 @@ TEST(BarvinokTest, computeNumTermsPolytope) {
                            "-y + 1 >= 0, -z + 1 >= 0)",
                            0);
 
-  std::vector<std::pair<PresburgerSet, GeneratingFunction>> count =
+  std::vector<std::pair<PresburgerRelation, GeneratingFunction>> count =
       computePolytopeGeneratingFunction(poly);
   // There is only one chamber, as it is non-parametric.
   EXPECT_EQ(count.size(), 9u);
@@ -307,4 +307,54 @@ TEST(BarvinokTest, solveParametricEquations) {
   FracMatrix solution = *solveParametricEquations(equations);
   EXPECT_EQ(solution.at(0, 0), Fraction(1, 2));
   EXPECT_EQ(solution.at(1, 0), 1);
+}
+
+// Be rational.
+TEST(BarvinokTest, computeChamberDecomposition) {
+/*
+(N = 3, M = 4)
+
+2i <= M <= 2i + 1,    ==> i = 2
+2j <= M <= 2j + 1,    ==> j = 2
+2j >= N + 1           ==> 4 >= 4
+2j + N - 2M + 2 >= 0  ==> 4 + 3 - 8 + 2 = 1 >= 0
+
+N + 1 <= M < N + 2
+*/
+
+  // IntegerRelation rel(PresburgerSpace::getRelationSpace(0, 2, 2));
+  // rel.addInequality({ -2, 0, 0, 1, 0 });
+  // rel.addInequality({ 2, 0, 0, -1, 1 });
+  // rel.addInequality({ 0, 2, 0, -1, 1 });
+  // rel.addInequality({ 0, -2, 0, 1, 0 });
+  // rel.addInequality({ 0, 2, -1, 0, -1 });
+  // rel.addInequality({ 0, 2, 1, -2, 2 });
+
+/*
+(N = 5, M = 2)
+
+2j <= N <= 2j + 1           ==> j = 2
+2i + 1 <= N <= 2i + 2       ==> i = 1
+2N - 2j - M >= 3            ==> 10 - 4 - 2 >= 3 (false)
+*/
+
+  // IntegerRelation rel(PresburgerSpace::getRelationSpace(0, 2, 2));
+  // rel.addInequality({  0,  2, -1,  0,  1, });
+  // rel.addInequality({  0, -2,  1,  0,  0, });
+  // rel.addInequality({  0, -2,  2, -1, -3, });
+  // rel.addInequality({ -2,  0,  1,  0, -1, });
+  // rel.addInequality({  2,  0, -1,  0,  2, });
+  // return;
+}
+
+// Check all active inequalities rather than the current subset.
+TEST(BarvinokTest, computePolytopeGeneratingFunction) {
+  // IntegerRelation rel(PresburgerSpace::getRelationSpace(0, 3));
+  // rel.addInequality({ -1, 0, 0, 8 });
+  // rel.addInequality({ 0, -1, 0, 9 });
+  // rel.addInequality({ 0, 0, 1, -1 });
+  // rel.addInequality({ 0, 1, -1, -2 });
+  // rel.addInequality({ 1, 0, -1, -1 });
+  // llvm::errs() << "int points = " << countIntPointsWithoutParameters(PresburgerRelation(rel)) << "\n";
+  // return;
 }

@@ -19,6 +19,11 @@ using namespace mlir::presburger::detail;
 using IntVector = llvm::SmallVector<llvm::DynamicAPInt>;
 
 namespace {
+  
+template<class T>
+[[gnu::unused]] static void dumpVector(const std::string &name, const T &point) {
+  llvm::errs() << name << " = "; llvm::interleaveComma(point, llvm::errs()); llvm::errs() << "\n";
+}
 
 // Matrix multiplication.
 template<typename T>
@@ -743,23 +748,135 @@ mlir::presburger::detail::solveParametricEquations(FracMatrix equations) {
   return vertex;
 }
 
+// Triangulate with the DeLaunay's method.
+std::vector<ConeV> triangulate(const ConeV &dual) {
+  llvm::errs() << "triangulation:"; dual.dump();
+  std::vector<ConeV> triangles;
+  unsigned numRays = dual.getNumRows();
+  unsigned dim = dual.getNumColumns();
+  IntMatrix extendedRays = dual;
+  // Raise the rays from R^d to points in R^{d+1} by placing them on a parabola.
+  extendedRays.insertColumn(extendedRays.getNumColumns());
+  for (unsigned i = 0; i < numRays; i++) {
+    DynamicAPInt sum(0);
+    auto row = extendedRays.getRow(i);
+    for (unsigned j = 0, e = row.size(); j < e; j++) {
+      row[j] *= 1000;
+      sum += row[j] * row[j];
+    }
+    extendedRays.getRow(i).back() = sum + i;
+  }
+
+  // We don't want a full double-description method here.
+  // Since we'd expect that the dimension of `dual` isn't large,
+  // and the function is rarely called, let's do it brute-force.
+  //
+  // We enumerate all combinations of size `dim`, denoted as
+  // p_1, ..., p_d.
+  // These vectors are *points* rather than *rays* now, so when added
+  // so they form a hyperplane of dimension `dim` with origin, which might be
+  // a facet.
+  //
+  // We solve the equation pn = 0 for the normal vector `n`.
+  // To avoid infinite solutions, we let the last element of `n` be 1.
+  SmallVector<int> indicator(numRays);
+  for (unsigned i = numRays - dim; i < numRays; ++i)
+    indicator[i] = 1;
+  do {
+    auto [subset, remainder] = extendedRays.splitByBitset(indicator);
+    auto maybeSolution = solveParametricEquations(FracMatrix(subset));
+    if (!maybeSolution)
+      continue;
+    
+    // Since there is no parameter, the solution should have a single column.
+    auto solution = maybeSolution->transpose();
+    assert(solution.getNumRows() == 1);
+    DynamicAPInt lcm(1);
+    for (const auto &f : solution.getRow(0))
+      lcm = llvm::lcm(lcm, f.den);
+
+    std::vector<DynamicAPInt> normal;
+    for (const auto &f : solution.getRow(0))
+      normal.push_back((f * lcm).getAsInteger());
+
+    // Now we've got a hyperplane `nx = c`. But the orientation is
+    // not yet decided; we could have -nx = -c and use `-n` as the normal.
+    // 
+    // We need to adjust the hyperplane such that its normal points to the side that
+    // doesn't contain the polytope. This is achieved by requiring nx <= c for all other
+    // vertices.
+    // An 1D example:
+    //  ----|--------------|----
+    //      |x=1           |x=2
+    // Here, the supporting hyperplane at x=1 has n=-1, so that for x=2, we have nx <= -1;
+    // The one at x=2 has n=1/2, so that for x=1, we have x/2 <= 1.
+    //
+    // If we flipped the signs, then the hyperplane at x=1 becomes x=1 rather than -x=-1 above;
+    // this will mean a requirement of x <= 1, which isn't satisfied by x=2.
+
+    bool neg = true, pos = true;
+    for (unsigned i = 0, e = remainder.getNumRows(); i < e; i++) {
+      auto vertex = remainder.getRow(i);
+      auto product = std::inner_product(vertex.begin(), vertex.end(), normal.begin(), Fraction(0));
+      // Don't forget the actual n is [..normal, 1], scaled by lcm.
+      product += vertex.back() * lcm;
+      // After introducing a small perturbation, no d+1 points will be on the same facet.
+      assert(product != 0);
+      if (product > 0)
+        neg = false;
+      if (product < 0)
+        pos = false;
+    }
+    // It is impossible that nx-c is both positive and negative for every vertex.
+    assert(!(neg && pos));
+
+    // If nx - c is negative for some vertices and positive for others, the vertices
+    // are actually separated (lie on both sides) by this hyperplane.
+    // This means it isn't a facet.
+    if (!neg && !pos)
+      continue;
+    // When everything is positive, this means we need to flip the signs,
+    // since we expected that everything is negative.
+    // We only care about lower facets, i.e. those whose last dimensions' normal is
+    // negative.
+    auto last = 1;
+    if (pos)
+      last *= -1;
+    if (last >= 0)
+      continue;
+
+    // Now the rays that produced this facet is just the triangulated cone.
+    subset.removeColumn(subset.getNumColumns() - 1);
+    triangles.emplace_back(subset);
+  } while (std::next_permutation(indicator.begin(), indicator.end()));
+  llvm::errs() << "complete\n";
+  return triangles;
+}
+
 std::vector<std::pair<int, ConeH>> mlir::presburger::detail::unimodularDecompose(const ConeH &tangentCone) {
   auto dual = getDual(tangentCone);
   DynamicAPInt index = getIndex(dual);
-  if (index == 0)
-    llvm_unreachable("should have been prevented by eliminateEqualities()");
-
   // The cone is already unimodular and needs no further decomposition.
   if (index == 1)
     return { { 1, tangentCone } };
 
-  auto cones = unimodularDecomposeSimplicial(1, dual);
+  std::vector<std::pair<int, ConeV>> cones;
+  // The cone is not simplicial; we must triangulate it.
+  if (index != 0)
+    cones = unimodularDecomposeSimplicial(1, dual);
+  else {
+    auto triangulated = triangulate(dual);
+    for (const auto &cone : triangulated) {
+      auto single = unimodularDecomposeSimplicial(1, cone);
+      std::copy(single.begin(), single.end(), std::back_inserter(cones));
+    }
+  }
+
   std::vector<std::pair<int, ConeH>> result;
   result.reserve(cones.size());
 
   for (const auto &[sign, conev] : cones)
     result.emplace_back(sign, getDual(conev));
-  
   return result;
 }
 
@@ -838,7 +955,6 @@ mlir::presburger::detail::computeChamberDecomposition(
     auto converted = PresburgerRelation::getEmpty(PresburgerSpace::getSetSpace(numSymbols));
     for (auto &disjunct : region.getAllDisjuncts()) {
       assert(disjunct.getNumEqualities() == 0);
-      // llvm::errs() << "before: "; disjunct.dump();
 
       IntegerRelation result(PresburgerSpace::getRelationSpace(0, numSymbols, 0, disjunct.getNumLocalVars()));
       auto dDim = result.getNumDomainVars() + result.getNumRangeVars();
@@ -850,12 +966,9 @@ mlir::presburger::detail::computeChamberDecomposition(
         result.addInequality(add);
       }
 
-      // llvm::errs() << "after: "; result.dump();
       converted.unionInPlace(result);
     }
     result.emplace_back(converted, gf);
-    // llvm::errs() << "final region: "; converted.dump();
-    // llvm::errs() << "final gf: "; gf.dump(); llvm::errs() << "\n";
   }
   return result;
 }
@@ -987,6 +1100,18 @@ mlir::presburger::detail::computePolytopeGeneratingFunction(
       SmallVector<DynamicAPInt> ineq(numVars + 1);
       for (unsigned k = 0; k < numVars; ++k)
         ineq[k] = subset(j, k);
+      tangentCone.addInequality(ineq);
+    }
+    // There might be more active inequalities other than the ones chosen.
+    // For an inequality Ax + Bp + c >= 0 to be active, the equality must hold;
+    // This means the corresponding row of the active region must be zero,
+    // since that is produced by substituting `x` back into the inequality.
+    for (unsigned j = 0, e = activeRegion.getNumRows(); j < e; ++j) {
+      if (llvm::any_of(activeRegion.getRow(j), [](const Fraction &x) { return x != 0; }))
+        continue;
+      SmallVector<DynamicAPInt> ineq(numVars + 1);
+      for (unsigned k = 0; k < numVars; ++k)
+        ineq[k] = remainder(j, k);
       tangentCone.addInequality(ineq);
     }
 
@@ -1213,7 +1338,7 @@ std::vector<QuasiPolynomial> getBinomialCoefficients(const QuasiPolynomial &n,
     coefficients.emplace_back(
         (coefficients[j - 1] * (n - QuasiPolynomial(numParams, j - 1)) /
          Fraction(j, 1))
-            .simplify());
+            .collectTerms().simplify());
   return coefficients;
 }
 
@@ -1265,6 +1390,7 @@ mlir::presburger::detail::computeNumTerms(const GeneratingFunction &gf) {
   for (ArrayRef<Point> den : gf.getDenominators())
     llvm::append_range(allDenominators, den);
   Point mu = getNonOrthogonalVector(allDenominators);
+  // dumpVector("mu", mu);
 
   unsigned numParams = gf.getNumParams();
   const std::vector<std::vector<Point>> &ds = gf.getDenominators();
@@ -1292,6 +1418,7 @@ mlir::presburger::detail::computeNumTerms(const GeneratingFunction &gf) {
     // (-s)(\sum_{0 ≤ k < dens[j]} (s+1)^k).
     for (auto &j : dens)
       j = abs(j) - 1;
+
     // Note that at this point, the semantics of `dens[j]` changes to mean
     // a term (\sum_{0 ≤ k ≤ dens[j]} (s+1)^k). The denominator is, as before,
     // a product of these terms.
@@ -1344,8 +1471,7 @@ mlir::presburger::detail::computeNumTerms(const GeneratingFunction &gf) {
     denominatorCoefficients = eachTermDenCoefficients[0];
     for (unsigned j = 1, e = eachTermDenCoefficients.size(); j < e; ++j)
       denominatorCoefficients = multiplyPolynomials(denominatorCoefficients,
-                                                    eachTermDenCoefficients[j]);
-
+                                                    eachTermDenCoefficients[j]);                                         
     totalTerm =
         totalTerm + getCoefficientInRationalFunction(r, numeratorCoefficients,
                                                      denominatorCoefficients) *
@@ -1396,6 +1522,7 @@ void obtainRegions(const PresburgerRelation &rel, const PolyhedronH &current, Sm
     // By "active region", we must also take the parameter space
     // constraint into consideration.
     auto [c, projected] = projectToFullDimension(current);
+    assert(projected.isFullDim());
     PresburgerRelation constraint(c);
 
     // A singleton set.
