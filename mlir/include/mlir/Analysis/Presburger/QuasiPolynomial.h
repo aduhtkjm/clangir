@@ -71,6 +71,11 @@ public:
   Fraction getConstantTerm();
 
   Fraction evaluate(ArrayRef<DynamicAPInt> x) const;
+  // When the first variable is fixed to be `x`, returns the simplified quasipolynomial.
+  QuasiPolynomial partialEvaluate(const DynamicAPInt &x) const;
+  // When the `index`'th variable is expressed as all other variables in `affine`,
+  // returns the simplified polynomial.
+  QuasiPolynomial partialEvaluate(unsigned index, ArrayRef<DynamicAPInt> x) const;
 
   void print(llvm::raw_ostream &os) const;
   void dump() const { print(llvm::errs()); }

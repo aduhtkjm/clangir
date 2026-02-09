@@ -119,14 +119,14 @@ QuasiPolynomial QuasiPolynomial::simplify() const {
     // A term is zero if its coefficient is zero, or
     if (coefficients[i] == Fraction(0, 1))
       continue;
-    bool product_is_zero =
+    bool productIsZero =
         // if any of the affine functions in the product
-        llvm::any_of(affine[i], [](const SmallVector<Fraction> &affine_ij) {
+        llvm::any_of(affine[i], [](const SmallVector<Fraction> &affineIj) {
           // has all its coefficients as zero.
-          return llvm::all_of(affine_ij,
+          return llvm::all_of(affineIj,
                               [](const Fraction &f) { return f == 0; });
         });
-    if (product_is_zero)
+    if (productIsZero)
       continue;
 
     // Now, we know the term is nonzero.
@@ -195,6 +195,33 @@ Fraction QuasiPolynomial::evaluate(ArrayRef<DynamicAPInt> x) const {
   return value;
 }
 
+QuasiPolynomial QuasiPolynomial::partialEvaluate(const DynamicAPInt &x) const {
+  std::vector<std::vector<SmallVector<Fraction>>> aff{affine.size()};
+  for (unsigned i = 0; i < affine.size(); i++) {
+    for (ArrayRef<Fraction> xCoeffs : affine[i]) {
+      auto sliced = xCoeffs.slice(1);
+      aff[i].emplace_back(sliced.begin(), sliced.end());
+      aff[i].back().back() += x * xCoeffs[0];
+    }
+  }
+  return QuasiPolynomial(getNumInputs() - 1, coefficients, aff);
+}
+
+QuasiPolynomial QuasiPolynomial::partialEvaluate(unsigned index, ArrayRef<DynamicAPInt> x) const {
+  std::vector<std::vector<SmallVector<Fraction>>> aff{affine.size()};
+  for (unsigned i = 0; i < affine.size(); i++) {
+    for (ArrayRef<Fraction> xCoeffs : affine[i]) {
+      SmallVector<Fraction> w(xCoeffs.begin(), xCoeffs.end());
+      Fraction value = w[index];
+      w.erase(w.begin() + index);
+      for (unsigned j = 0; j < w.size(); j++)
+        w[j] += x[j] * value;
+      aff[i].push_back(w);
+    }
+  }
+  return QuasiPolynomial(getNumInputs() - 1, coefficients, aff).simplify().collectTerms();
+}
+
 void QuasiPolynomial::print(llvm::raw_ostream &os) const {
   if (affine.empty()) {
     os << "<empty>";
@@ -205,17 +232,16 @@ void QuasiPolynomial::print(llvm::raw_ostream &os) const {
     if (i != 0)
       os << " + ";
 
-    os << coefficients[i] << " * [";
-    if (affine[i].size() > 1)
-      os << "{";
+    os << coefficients[i];
+    if (affine[i].size() > 0)
+      os << " * [";
     for (unsigned j = 0, f = affine[i].size(); j < f; j++) {
       if (j != 0)
-        os << "} * {";
+        os << "] * [";
       
       llvm::interleaveComma(affine[i][j], os);
     }
-    if (affine[i].size() > 1)
-      os << "}";
-    os << "]";
+    if (affine[i].size() > 0)
+      os << "]";
   }
 }

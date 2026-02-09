@@ -159,7 +159,7 @@ ParticularSolution findParticularSolution(const IntMatrix &eqs, const IntMatrix 
     IntVector eq(dims + 1);
     std::copy(row.begin(), row.end() - 1, eq.begin());
     // This is the divisor.
-    eq[numParams + j] = d(i, i);
+    eq[numParams + j] = -d(i, i);
     eq.back() = row.back();
     constraints.addEquality(eq);
   }
@@ -750,7 +750,6 @@ mlir::presburger::detail::solveParametricEquations(FracMatrix equations) {
 
 // Triangulate with the DeLaunay's method.
 std::vector<ConeV> triangulate(const ConeV &dual) {
-  llvm::errs() << "triangulation:"; dual.dump();
   std::vector<ConeV> triangles;
   unsigned numRays = dual.getNumRows();
   unsigned dim = dual.getNumColumns();
@@ -817,7 +816,7 @@ std::vector<ConeV> triangulate(const ConeV &dual) {
     bool neg = true, pos = true;
     for (unsigned i = 0, e = remainder.getNumRows(); i < e; i++) {
       auto vertex = remainder.getRow(i);
-      auto product = std::inner_product(vertex.begin(), vertex.end(), normal.begin(), Fraction(0));
+      auto product = std::inner_product(normal.begin(), normal.end(), vertex.begin(), Fraction(0));
       // Don't forget the actual n is [..normal, 1], scaled by lcm.
       product += vertex.back() * lcm;
       // After introducing a small perturbation, no d+1 points will be on the same facet.
@@ -849,7 +848,6 @@ std::vector<ConeV> triangulate(const ConeV &dual) {
     subset.removeColumn(subset.getNumColumns() - 1);
     triangles.emplace_back(subset);
   } while (std::next_permutation(indicator.begin(), indicator.end()));
-  llvm::errs() << "complete\n";
   return triangles;
 }
 
@@ -1390,7 +1388,6 @@ mlir::presburger::detail::computeNumTerms(const GeneratingFunction &gf) {
   for (ArrayRef<Point> den : gf.getDenominators())
     llvm::append_range(allDenominators, den);
   Point mu = getNonOrthogonalVector(allDenominators);
-  // dumpVector("mu", mu);
 
   unsigned numParams = gf.getNumParams();
   const std::vector<std::vector<Point>> &ds = gf.getDenominators();
@@ -1571,6 +1568,8 @@ mlir::presburger::detail::countIntegerPoints(const PresburgerRelation &rel) {
   SmallVector<unsigned> active;
   auto universe = IntegerRelation::getUniverse(rel.getSpace());
   obtainRegions(rel, universe, active, 0, records);
+  // for (auto &rec : records)
+  //   rec.dump();
 
   unsigned numParams = rel.getNumSymbolVars();
   auto paramSpace = PresburgerSpace::getSetSpace(numParams);

@@ -245,6 +245,12 @@ public:
   inline ArrayRef<DynamicAPInt> getInequality(unsigned idx) const {
     return inequalities.getRow(idx);
   }
+  inline MutableArrayRef<DynamicAPInt> getEquality(unsigned idx) {
+    return equalities.getRow(idx);
+  }
+  inline MutableArrayRef<DynamicAPInt> getInequality(unsigned idx) {
+    return inequalities.getRow(idx);
+  }
   /// The same, but casts to int64_t. This is unsafe and will assert-fail if the
   /// value does not fit in an int64_t.
   inline SmallVector<int64_t, 8> getEquality64(unsigned idx) const {
@@ -255,8 +261,10 @@ public:
   }
 
   inline IntMatrix getInequalities() const { return inequalities; }
+  inline IntMatrix &getInequalities() { return inequalities; }
 
   inline IntMatrix getEqualities() const { return equalities; }
+  inline IntMatrix &getEqualities() { return equalities; }
 
   /// Get the number of vars of the specified kind.
   unsigned getNumVarKind(VarKind kind) const {

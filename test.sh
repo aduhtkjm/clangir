@@ -7,6 +7,7 @@ warn() {
   echo -e "\e[33mwarning:\e[0m $1"
 }
 
+export FALCON_PYTHON_ADAPTOR="/home/aduhtkjm/llvm/model-counter/adaptor.py"
 while [[ $# -gt 0 ]]; do
   case "$1" in
     -c|--cmake)

@@ -1,0 +1,31 @@
+testing: /home/aduhtkjm/llvm/polybench/linear-algebra/solvers/cholesky/cholesky.c
+testing: /home/aduhtkjm/llvm/polybench/linear-algebra/solvers/gramschmidt/gramschmidt.c
+testing: /home/aduhtkjm/llvm/polybench/linear-algebra/solvers/trisolv/trisolv.c
+testing: /home/aduhtkjm/llvm/polybench/linear-algebra/solvers/durbin/durbin.c
+testing: /home/aduhtkjm/llvm/polybench/linear-algebra/solvers/ludcmp/ludcmp.c
+testing: /home/aduhtkjm/llvm/polybench/linear-algebra/solvers/lu/lu.c
+testing: /home/aduhtkjm/llvm/polybench/linear-algebra/kernels/2mm/2mm.c
+testing: /home/aduhtkjm/llvm/polybench/linear-algebra/kernels/doitgen/doitgen.c
+testing: /home/aduhtkjm/llvm/polybench/linear-algebra/kernels/atax/atax.c
+testing: /home/aduhtkjm/llvm/polybench/linear-algebra/kernels/mvt/mvt.c
+testing: /home/aduhtkjm/llvm/polybench/linear-algebra/kernels/3mm/3mm.c
+testing: /home/aduhtkjm/llvm/polybench/linear-algebra/kernels/bicg/bicg.c
+testing: /home/aduhtkjm/llvm/polybench/linear-algebra/blas/trmm/trmm.c
+testing: /home/aduhtkjm/llvm/polybench/linear-algebra/blas/gemm/gemm.c
+testing: /home/aduhtkjm/llvm/polybench/linear-algebra/blas/gemver/gemver.c
+testing: /home/aduhtkjm/llvm/polybench/linear-algebra/blas/gesummv/gesummv.c
+testing: /home/aduhtkjm/llvm/polybench/linear-algebra/blas/symm/symm.c
+testing: /home/aduhtkjm/llvm/polybench/linear-algebra/blas/syrk/syrk.c
+testing: /home/aduhtkjm/llvm/polybench/linear-algebra/blas/syr2k/syr2k.c
+testing: /home/aduhtkjm/llvm/polybench/medley/floyd-warshall/floyd-warshall.c
+testing: /home/aduhtkjm/llvm/polybench/medley/deriche/deriche.c
+testing: /home/aduhtkjm/llvm/polybench/medley/nussinov/nussinov.c <data-dependent>
+testing: /home/aduhtkjm/llvm/polybench/stencils/seidel-2d/seidel-2d.c
+testing: /home/aduhtkjm/llvm/polybench/stencils/jacobi-2d/jacobi-2d.c
+testing: /home/aduhtkjm/llvm/polybench/stencils/adi/adi.c
+testing: /home/aduhtkjm/llvm/polybench/stencils/fdtd-2d/fdtd-2d.c <broken>
+testing: /home/aduhtkjm/llvm/polybench/stencils/jacobi-1d/jacobi-1d.c
+testing: /home/aduhtkjm/llvm/polybench/stencils/heat-3d/heat-3d.c <good, but slow>
+testing: /home/aduhtkjm/llvm/polybench/datamining/covariance/covariance.c
+testing: /home/aduhtkjm/llvm/polybench/datamining/correlation/correlation.c
+

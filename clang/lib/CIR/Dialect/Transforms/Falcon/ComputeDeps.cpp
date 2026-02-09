@@ -5,6 +5,8 @@
 #include "mlir/Analysis/Presburger/Simplex.h"
 #include "clang/CIR/Dialect/IR/CIRDialect.h"
 #include "clang/CIR/Dialect/Passes.h"
+#include <sys/wait.h>
+#include <unistd.h>
 
 using namespace mlir;
 using namespace cir;
@@ -13,6 +15,11 @@ using namespace mlir::presburger;
 using namespace mlir::presburger::detail;
 
 namespace {
+
+template<class T>
+[[gnu::unused]] static void dumpVector(const T &point) {
+  llvm::errs() << "point = "; llvm::interleaveComma(point, llvm::errs()); llvm::errs() << "\n";
+}
 
 using IntVector = SmallVector<int64_t>;
 using LoopBound = std::pair<AffineBound, AffineBound>;
@@ -26,12 +33,16 @@ struct ComputeDeps : public ComputeDepsBase<ComputeDeps> {
   void markLexicalOrder();
   void markLoopInductionVars(Operation *op, SmallVector<unsigned> indices, unsigned &nextIndex);
 
+  void addBounds(IntegerRelation &rel, ArrayRef<LoopBound> loopBound, unsigned dims, unsigned offset);
   void addLexLess(PresburgerRelation &rel, IntegerRelation base, Operation *dep, Operation *sink, unsigned depDims, unsigned srcDims);
   void countCapacityMisses(const PresburgerRelation &domain, DenseMap<Operation *, std::vector<PresburgerRelation>> &instances);
   void oldCountCapacityMisses(const PresburgerRelation &domain, DenseMap<Operation *, std::vector<PresburgerRelation>> &instances);
 
+  IntegerRelation getDomain(GetElementOp sink);
   PresburgerRelation getDeps(Operation *sink, Operation *dep);
   llvm::SmallVector<Operation*> findRelevant();
+  IntVector extractCoefficients(AffineExpr expr, const SmallVector<Value> &symbolValues, int dims);
+  IntVector extractCoefficients(Value value, int dims);
 private:
   // For two operations S and T,
   // lexIndex[S] < lexIndex[T] iff. S is lexically before T in the IR.
@@ -74,17 +85,59 @@ std::optional<int64_t> getConstantOnLoopBound(Value value) {
   return std::nullopt;
 }
 
-// Checks whether all operands of `bound` are constants.
-bool isConstantBound(AffineBound &bound) {
+// Checks whether all operands of `bound` are constants or other variables.
+bool isValidBound(AffineBound &bound) {
   auto operands = bound.getOperands();
   return std::all_of(operands.begin(), operands.end(), [](Value value) {
-    return getConstantOnLoopBound(value).has_value();
+    return isa<IndexCastOp>(value.getDefiningOp()) || getConstantOnLoopBound(value).has_value();
   });
+}
+
+IntVector ComputeDeps::extractCoefficients(Value value, int dims) {
+  IntVector result(dims + 1);
+  auto *op = value.getDefiningOp();
+  // This is a block argument.
+  if (!op)
+    op = value.getParentBlock()->getParentOp();
+
+  if (auto fromindex = dyn_cast<FromIndexOp>(op))
+    return extractCoefficients(fromindex.getSrc(), dims);
+
+  if (auto loopvar = dyn_cast<AffineForOp>(op)) {
+    // The outermost loop will have loopVarIndex of size 1, but we want the subscript to be 0.
+    assert(loopVarIndex.count(loopvar));
+    auto depth = loopVarIndex[loopvar].size() - 1;
+    result[depth] += 1;
+    return result;
+  }
+
+  if (auto bin = dyn_cast<BinOp>(op)) {
+    IntVector l = extractCoefficients(bin.getLhs(), dims);
+    IntVector r = extractCoefficients(bin.getRhs(), dims);
+
+    switch (bin.getKind()) {
+    case BinOpKind::Add:
+      for (int i = 0; i < dims + 1; i++)
+        l[i] += r[i];
+      return l;
+    default:
+      llvm_unreachable("NYI: undealt binop");
+    }
+  }
+
+  if (auto constant = dyn_cast<ConstantOp>(op)) {
+    auto value = constant.getIntValue();
+    result.back() = value.getSExtValue();
+    return result;
+  }
+
+  op->dump();
+  llvm_unreachable("NYI: extractCoefficients for values");
 }
 
 // Extracts coefficients of dimensions and symbols from an AffineExpr.
 // All valuees
-IntVector extractCoefficients(AffineExpr expr, const SmallVector<Value> &symbolValues, int dims) {
+IntVector ComputeDeps::extractCoefficients(AffineExpr expr, const SmallVector<Value> &symbolValues, int dims) {
   IntVector result(dims + 1);
 
   if (auto c = dyn_cast<AffineConstantExpr>(expr)) {
@@ -99,6 +152,10 @@ IntVector extractCoefficients(AffineExpr expr, const SmallVector<Value> &symbolV
 
   if (auto s = dyn_cast<AffineSymbolExpr>(expr)) {
     Value value = symbolValues[s.getPosition()];
+    if (auto indexcast = dyn_cast<IndexCastOp>(value.getDefiningOp())) {
+      auto var = indexcast.getSrc();
+      return extractCoefficients(var, dims);
+    }
     result.back() += *getConstantOnLoopBound(value);
     return result;
   }
@@ -150,9 +207,8 @@ std::optional<SmallVector<LoopBound>> getLoopBounds(Operation *op) {
       auto lower = affine.getLowerBound();
 
       // We must make sure they refer to known constants, or other affine variables.
-      if (!isConstantBound(upper) || !isConstantBound(lower)) {
+      if (!isValidBound(upper) || !isValidBound(lower))
         return std::nullopt;
-      }
 
       bounds.push_back({ lower, upper });
     }
@@ -189,7 +245,7 @@ Operation *findOutermostOperation(Operation *op) {
   return outermost;
 }
 
-void addBounds(IntegerRelation &rel, ArrayRef<LoopBound> loopBound, unsigned dims, unsigned offset) {
+void ComputeDeps::addBounds(IntegerRelation &rel, ArrayRef<LoopBound> loopBound, unsigned dims, unsigned offset) {
   for (auto [i, bound] : enumerate(loopBound)) {
     auto [low, high] = bound;
     // We must insert `dims(sinkMap)` elements at front.
@@ -396,7 +452,116 @@ DynamicAPInt countIntPointsWithoutParameters(const PresburgerRelation &rel) {
   return value.getAsInteger();
 }
 
-void enumerateFeasiblePoints(const IntegerRelation &rel, std::set<std::vector<DynamicAPInt>> &result, std::vector<DynamicAPInt> &current) {
+DynamicAPInt enumerateFeasiblePoints(const IntegerRelation &rel, std::vector<DynamicAPInt> &current, const QuasiPolynomial &count) {
+  if (rel.getNumRangeVars() == 0) {
+    // Test feasibility for local variables.
+    if (LLVM_LIKELY(!rel.getNumLocalVars() || !rel.isIntegerEmpty()))
+      return DynamicAPInt(count.simplify().collectTerms().getConstantTerm() >= 0);
+    
+    return DynamicAPInt(0);
+  }
+
+  auto lb = rel.getConstantBound(BoundType::LB, 0);
+  auto ub = rel.getConstantBound(BoundType::UB, 0);
+  if (!lb || !ub)
+    assert(false && "the region should be bounded!");
+
+  DynamicAPInt total(0);
+  unsigned numRange = rel.getNumRangeVars(), numVars = rel.getNumVars();
+  IntegerRelation newrel(
+    rel.getNumInequalities(),
+    rel.getNumEqualities(),
+    numVars,
+    PresburgerSpace::getRelationSpace(0, numRange - 1, 0, rel.getNumLocalVars())
+  );
+  for (unsigned i = 0; i < rel.getNumEqualities(); i++) {
+    auto row = rel.getEquality(i);
+    newrel.addEquality(row.slice(1));
+    newrel.getEquality(i).back() += row[0] * *lb;
+  }
+  for (unsigned i = 0; i < rel.getNumInequalities(); i++) {
+    auto row = rel.getInequality(i);
+    newrel.addInequality(row.slice(1));
+    newrel.getInequality(i).back() += row[0] * *lb;
+  }
+
+  for (DynamicAPInt x = *lb; x <= *ub; x += 1) {
+    QuasiPolynomial remaining = count.partialEvaluate(x).simplify().collectTerms();
+
+    bool barvinokable = true;
+    for (unsigned i = 0, e = remaining.getCoefficients().size(); i < e; i++) {
+      auto &affine = remaining.getAffine()[i];
+      if (affine.size() > 1) {
+        barvinokable = false;
+        break;
+      }
+      
+      // A single affine expression.
+      if (affine.size() == 1) {
+        const auto &expr = affine[0];
+        auto coeff = remaining.getCoefficients()[i];
+        if (coeff.num % coeff.den != 0 || !std::all_of(expr.begin(), expr.end(), [](const Fraction &f) { return f.num % f.den == 0; })) {
+          barvinokable = false;
+          break;
+        }
+      }
+    }
+    // When there is a single variable and there are only a few possibilities,
+    // we directly enumerate them.
+    // This would be faster than a Barvinok.
+    if (newrel.getNumVars() == 1) {
+      auto lb = rel.getConstantBound(BoundType::LB, 1);
+      auto ub = rel.getConstantBound(BoundType::UB, 1);
+      if (!lb || !ub)
+        assert(false && "the region should be bounded!");
+
+      if (*ub - *lb <= 5)
+        barvinokable = false;
+    }
+    if (!barvinokable) {
+      current.push_back(x);
+      total += enumerateFeasiblePoints(newrel, current, remaining);
+      current.pop_back();
+    } else {
+      IntegerRelation w = newrel;
+      SmallVector<Fraction> ineq(newrel.getNumVars() + 1);
+      for (unsigned i = 0, e = remaining.getCoefficients().size(); i < e; i++) {
+        auto &coeff = remaining.getCoefficients()[i];
+        auto &affine = remaining.getAffine()[i];
+        // A constant.
+        if (affine.size() == 0) {
+          ineq.back() += coeff;
+          continue;
+        }
+
+        const auto &expr = affine[0];
+        for (unsigned i = 0; i < expr.size(); i++)
+          ineq[i] += coeff * expr[i];
+      }
+      SmallVector<DynamicAPInt> result(newrel.getNumVars() + 1);
+      DynamicAPInt lcm(1);
+      for (const auto &elem : ineq)
+        lcm = llvm::lcm(lcm, elem.den);
+      for (const auto &[i, elem] : llvm::enumerate(ineq))
+        result[i] = (elem * lcm).getAsInteger();
+      w.addInequality(result);
+      total += countIntPointsWithoutParameters(PresburgerRelation(w));
+    }
+
+    for (unsigned i = 0; i < rel.getNumEqualities(); i++) {
+      auto row = newrel.getEquality(i);
+      row.back() += rel.getEquality(i)[0];
+    }
+    for (unsigned i = 0; i < rel.getNumInequalities(); i++) {
+      auto row = newrel.getInequality(i);
+      row.back() += rel.getInequality(i)[0];
+    }
+  }
+  return total;
+}
+
+
+void naiveEnumerateFeasiblePoints(const IntegerRelation &rel, std::set<std::vector<DynamicAPInt>> &result, std::vector<DynamicAPInt> &current) {
   unsigned varId = current.size();
   if (varId == rel.getNumRangeVars()) {
     // Test feasibility for local variables.
@@ -418,7 +583,7 @@ void enumerateFeasiblePoints(const IntegerRelation &rel, std::set<std::vector<Dy
     copy.addEquality(eq);
 
     current.push_back(x);
-    enumerateFeasiblePoints(copy, result, current);
+    naiveEnumerateFeasiblePoints(copy, result, current);
     current.pop_back();
   }
 }
@@ -504,7 +669,7 @@ public:
   }
 };
 
-IntegerRelation getDomain(GetElementOp sink) {
+IntegerRelation ComputeDeps::getDomain(GetElementOp sink) {
   auto baseAttr = getAttr<ArrayBaseAttr>(sink);
   auto offsetAttr = getAttr<ArrayOffsetAttr>(sink);
   
@@ -1160,9 +1325,115 @@ void ComputeDeps::runOnSink(Operation *sink) {
   } // for each piece of lexmax
 }
 
-template<class T>
-[[gnu::unused]] static void dumpVector(const T &point) {
-  llvm::errs() << "point = "; llvm::interleaveComma(point, llvm::errs()); llvm::errs() << "\n";
+[[gnu::unused]] DynamicAPInt enumeratePoints(IntegerRelation rel, QuasiPolynomial count) {
+  DynamicAPInt capacityMisses(0);
+  std::vector<DynamicAPInt> current;
+  // Pre-simplify the relation and the count.
+  // If we have an affine equality between two range variables, we can merge them.
+  unsigned locals = rel.getNumLocalVars();
+  assert(rel.getNumDomainVars() == 0 && rel.getNumSymbolVars() == 0);
+  bool changed;
+  do {
+    changed = false;
+    unsigned ranges = rel.getNumRangeVars();
+    for (unsigned i = 0, e = rel.getNumEqualities(); i < e; i++) {
+      auto row = rel.getEquality(i);
+      // We need all locals to have a zero coefficient.
+      if (std::any_of(row.begin() + ranges, row.begin() + ranges + locals, [](const DynamicAPInt &v) { return v != 0; }))
+        continue;
+
+      // To make it work, we must ensure that the coefficient of the range variable is 1 (or -1);
+      // otherwise, the IntegerRelation will be hard to transform.
+      unsigned j = 0;
+      for (; j < ranges; j++) {
+        if (row[j] == 1 || row[j] == -1)
+          break;
+      }
+      if (j == ranges)
+        continue;
+      // Now variable `j` is equal to the affine function of `row`.
+      if (row[j] == 1) {
+        for (auto &x : row)
+          x *= -1;
+      }
+
+      // Now perform substitution.
+      IntegerRelation newrel = rel;
+      newrel.removeVar(VarKind::Range, j);
+      auto substRef = newrel.getEquality(i);
+      SmallVector<DynamicAPInt> subst(substRef.begin(), substRef.end());
+      SmallVector<DynamicAPInt> substWithoutLocals(substRef.begin(), substRef.begin() + ranges - 1);
+      substWithoutLocals.push_back(substRef.back());
+      for (unsigned k = 0, z = rel.getNumEqualities(); k < z; k++) {
+        auto row = newrel.getEquality(k);
+        auto coeff = rel.getEquality(k)[j];
+        for (unsigned i = 0, e = row.size(); i < e; i++)
+          row[i] += subst[i] * coeff;
+      }
+      for (unsigned k = 0, z = rel.getNumInequalities(); k < z; k++) {
+        auto row = newrel.getInequality(k);
+        auto coeff = rel.getInequality(k)[j];
+        for (unsigned i = 0, e = row.size(); i < e; i++)
+          row[i] += subst[i] * coeff;
+      }
+      rel = newrel;
+      rel.simplify();
+
+      // Also substitute the polynomial.
+      count = count.partialEvaluate(j, substWithoutLocals);
+      changed = true;
+      break;
+    }
+  } while (changed);
+
+  return enumerateFeasiblePoints(rel, current, count);
+}
+
+[[gnu::unused]] DynamicAPInt cnfModelCount(const IntegerRelation &rel, const QuasiPolynomial &count) {
+  // Dump the domain.
+  char tmpname[] = "/tmp/falconXXXXXX";  // mkstemp requires XXXXXX
+  int fd = mkstemp64(tmpname);
+  if (fd == -1) {
+    perror("mkstemp");
+    abort();
+  }
+  FILE* tmp = fdopen(fd, "w+");
+  std::string str;
+  llvm::raw_string_ostream ss(str);
+  rel.print(ss);
+  fprintf(tmp, "%s", str.c_str());
+
+  // For every variable, calculate the bound.
+  for (unsigned i = 0; i < rel.getNumVars(); i++) {
+    auto lb = rel.getConstantBound(BoundType::LB, i);
+    auto ub = rel.getConstantBound(BoundType::UB, i);
+    if (!lb || !ub)
+      assert(false && "the region should be bounded!");
+
+    // Output to the Python adaptor.
+    DynamicAPInt lbb = *lb;
+    fprintf(tmp, "%ld %ld\n", (int64_t) *lb, (int64_t) *ub);
+  }
+
+  // Dump the count.
+  str.clear();
+  count.print(ss);
+  fprintf(tmp, "%s", str.c_str());
+  fflush(tmp);
+
+  int pid = fork();
+  if (pid == 0) {
+    char *argv[] = {
+      const_cast<char*>("/usr/bin/python3"),
+      getenv("FALCON_PYTHON_ADAPTOR"),
+      tmpname, nullptr
+    };
+    execv("/usr/bin/python3", argv);
+    exit(0);
+  }
+  waitpid(pid, nullptr, 0);
+  fclose(tmp);
+  return DynamicAPInt(0);
 }
 
 void ComputeDeps::countCapacityMisses(const PresburgerRelation &domain, DenseMap<Operation *, std::vector<PresburgerRelation>> &instances) {
@@ -1231,8 +1502,9 @@ void ComputeDeps::countCapacityMisses(const PresburgerRelation &domain, DenseMap
   // of this set, so we can view v_s as parameters and count the set.
   disjointUnion = extraSimplify(disjointUnion);
   disjointUnion.convertVarKind(VarKind::Domain, 0, srcDims, VarKind::Symbol, 0);
-  auto result = countIntegerPoints(disjointUnion.computeReprWithOnlyDivLocals());
-
+  auto converted = disjointUnion.computeReprWithOnlyDivLocals();
+  auto result = countIntegerPoints(converted);
+  
   for (const auto &[region, count] : result) {
     auto intersect = region.intersect(domain);
     if (intersect.isIntegerEmpty())
@@ -1247,8 +1519,8 @@ void ComputeDeps::countCapacityMisses(const PresburgerRelation &domain, DenseMap
     assert(region.getSpace().getNumVars() == srcDims);
 
     for (unsigned i = 0, e = count.getCoefficients().size(); i < e; i++) {
-      auto coeff = count.getCoefficients()[i];
-      auto affine = count.getAffine()[i];
+      auto &coeff = count.getCoefficients()[i];
+      auto &affine = count.getAffine()[i];
       if (affine.size() > 1) {
         barvinokable = false;
         break;
@@ -1272,18 +1544,23 @@ void ComputeDeps::countCapacityMisses(const PresburgerRelation &domain, DenseMap
       }
     }
     if (!barvinokable) {
-      llvm::errs() << "enumerate triggered\n";
-      llvm::errs() << "count = "; count.dump(); llvm::errs() << "\n";
-      auto divonly = intersect.computeReprWithOnlyDivLocals();
-      std::set<std::vector<DynamicAPInt>> feasiblePoints;
-      std::vector<DynamicAPInt> current;
+      auto divonly = intersect.simplify().computeReprWithOnlyDivLocals();
+      auto difference = (count - QuasiPolynomial(count.getNumInputs(), cacheSize)).collectTerms();
+      for (const auto &disjunct : divonly.getAllDisjuncts()) {
+        // Method 1: Optimized enumeration.
+        if (0)
+          capacityMisses += enumeratePoints(disjunct, difference);
 
-      for (const auto &disjunct : divonly.getAllDisjuncts())
-        enumerateFeasiblePoints(disjunct, feasiblePoints, current);
-      
-      for (const auto &point : feasiblePoints) {
-        if (count.evaluate(point) >= cacheSize)
-          capacityMisses += 1;
+        // Method 2: Naive enumeration, without optimization.
+        if (1) {
+          std::set<std::vector<DynamicAPInt>> feasiblePoints;
+          std::vector<DynamicAPInt> current;
+          naiveEnumerateFeasiblePoints(disjunct, feasiblePoints, current);
+          for (const auto &point : feasiblePoints) {
+            if (count.evaluate(point) >= cacheSize)
+              capacityMisses += 1;
+          }
+        }
       }
       continue;
     }
@@ -1303,13 +1580,19 @@ void ComputeDeps::countCapacityMisses(const PresburgerRelation &domain, DenseMap
 }
 
 void ComputeDeps::runOnOperation() {
-  // IntegerRelation rel(PresburgerSpace::getRelationSpace(0, 3));
-  // rel.addInequality({ -1, 0, 0, 8 });
-  // rel.addInequality({ 0, -1, 0, 9 });
-  // rel.addInequality({ 0, 0, 1, -1 });
+  // IntegerRelation rel(PresburgerSpace::getRelationSpace(0, 1, 2));
+  // rel.addInequality({ 0, 0, 1, -4 });
+  // rel.addInequality({ 0, -1, 0, 7 });
   // rel.addInequality({ 0, 1, -1, -2 });
-  // rel.addInequality({ 1, 0, -1, -1 });
-  // llvm::errs() << "int points = " << countIntPointsWithoutParameters(PresburgerRelation(rel)) << "\n";
+  // rel.addInequality({ 2, 0, -1, 0 });
+  // rel.addInequality({ -2, 0, 1, 1 });
+  // rel.addInequality({ 2, 1, -2, -3 });
+  // auto result = countIntegerPoints(PresburgerRelation(rel));
+  // for (auto &[r, c] : result) {
+  //   llvm::errs() << "region = "; r.dump();
+  //   llvm::errs() << "has (3, 4) = " << r.containsPoint({ 3, 4 }) << "\n";
+  //   llvm::errs() << "count = "; c.dump(); llvm::errs() << "\n";
+  // }
   // return;
 
   auto *module = getOperation();
