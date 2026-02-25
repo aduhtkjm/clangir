@@ -67,6 +67,8 @@ while [[ $# -gt 0 ]]; do
         exit 1
       fi
       simul=$2; shift 2;;
+    -S|--small)
+      small=1; shift;;
     *)
       die "unknown option: $1"; failed=1; shift;;
   esac
@@ -136,13 +138,18 @@ if [[ -n $testcase ]]; then
   echo "testing: $testpath"
   output=$tamper/"$testcase.mlir"
   rm -f $output
+  cmd="clang -I$polybench/utilities -emit-cir $testpath -o $output"
   if [[ -n $valgrind ]]; then
-    echo $cachesize $cachelinesize | valgrind clang -I$polybench/utilities -emit-cir $testpath -o $output
+    cmd="echo $cachesize $cachelinesize | valgrind $cmd"
   elif [[ -n $gdb ]]; then
-    gdb --args clang -I$polybench/utilities -emit-cir $testpath -o $output
+    cmd="gdb --args $cmd"
   else
-    echo $cachesize $cachelinesize | clang -I$polybench/utilities -emit-cir $testpath -o $output
+    cmd="echo $cachesize $cachelinesize | $cmd"
   fi
+  if [[ -n $small ]]; then
+    cmd="$cmd -DSMALL_DATASET"
+  fi
+  eval $cmd
   if [[ ! -f $output ]]; then
     die "compilation failed."
   else

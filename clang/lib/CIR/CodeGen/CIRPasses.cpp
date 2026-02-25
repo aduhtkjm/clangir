@@ -87,7 +87,8 @@ mlir::LogicalResult runCIRToCIRPasses(
   pm.addPass(mlir::createInlinerPass());
   pm.addPass(mlir::createConstFoldPass());
   pm.addPass(mlir::createCIRRaiseToAffinePass());
-  pm.addPass(mlir::createCSEPass());
+  // pm.addPass(mlir::createCSEPass());
+  // pm.addPass(mlir::createCIRRevertLICMPass());
   pm.addPass(mlir::createCIRFindOffsetPass());
   pm.addPass(mlir::createComputeDepsPass());
 

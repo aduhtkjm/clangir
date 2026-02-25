@@ -1613,7 +1613,7 @@ mlir::presburger::detail::countIntegerPoints(const PresburgerRelation &rel) {
       int parity = (rec.indices.size() % 2 == 1) ? 1 : -1;
       q = q + rec.count * parity;
     }
-    result.emplace_back(chamber, q.collectTerms());
+    result.emplace_back(chamber.simplify(), q.collectTerms());
   }
 
   return result;

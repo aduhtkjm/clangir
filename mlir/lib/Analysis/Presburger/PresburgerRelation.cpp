@@ -605,7 +605,7 @@ static PresburgerRelation getSetDifference(IntegerRelation b,
   }
 
   // Try to simplify the results.
-  result = result.simplify();
+  // result = result.simplify();
 
   return result;
 }

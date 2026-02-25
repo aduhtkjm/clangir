@@ -2,6 +2,7 @@ add_clang_library(Falcon
   RaiseToAffine.cpp
   FindOffset.cpp
   ComputeDeps.cpp
+  RevertLICM.cpp
 
   LINK_LIBS PUBLIC
   MLIRAnalysis

@@ -148,9 +148,14 @@ llvm::DenseMap<mlir::Operation*, int> getForIds(mlir::Operation *op) {
 }
 
 void FindOffset::findOffsetInFunction(FuncOp func) {
-  auto accesses = findAll<GetElementOp>(func);
+  std::vector<Operation*> accesses;
+  auto geps = findAll<GetElementOp>(func);
+  accesses.insert(accesses.end(), geps.begin(), geps.end());
+  auto strides = findAll<PtrStrideOp>(func);
+  accesses.insert(accesses.end(), strides.begin(), strides.end());
+  
   auto *ctx = func->getContext();
-  for (auto access : accesses) {
+  for (auto *access : accesses) {
     int dimCount = getNumSurroundingFor(access);
     int symCount = 0;
     auto forId = getForIds(access);

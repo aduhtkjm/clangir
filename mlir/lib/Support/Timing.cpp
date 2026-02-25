@@ -63,9 +63,9 @@ TimingManager::TimingManager() : impl(std::make_unique<TimingManagerImpl>()) {}
 TimingManager::~TimingManager() = default;
 
 /// Get the root timer of this timing manager.
-Timer TimingManager::getRootTimer() {
+Profiler TimingManager::getRootTimer() {
   auto rt = rootTimer();
-  return rt ? Timer(*this, *rt) : Timer();
+  return rt ? Profiler(*this, *rt) : Profiler();
 }
 
 /// Get the root timer of this timing manager wrapped in a `TimingScope`.

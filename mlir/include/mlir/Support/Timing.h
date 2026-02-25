@@ -21,7 +21,7 @@
 
 namespace mlir {
 
-class Timer;
+class Profiler;
 class TimingManager;
 class TimingScope;
 class DefaultTimingManager;
@@ -121,7 +121,7 @@ public:
   /// Use this function only if you need access to the timer itself. Otherwise
   /// consider the more convenient `getRootScope()` which offers an RAII-style
   /// wrapper around the timer.
-  Timer getRootTimer();
+  Profiler getRootTimer();
 
   /// Get the root timer of this timing manager wrapped in a `TimingScope` for
   /// convenience. Automatically starts the timer and stops it as soon as the
@@ -130,7 +130,7 @@ public:
 
 protected:
   // Allow `Timer` access to the protected callbacks.
-  friend class Timer;
+  friend class Profiler;
 
   //===--------------------------------------------------------------------===//
   // Callbacks
@@ -183,16 +183,16 @@ private:
 /// to a timer running within that manager. Libraries and infrastructure code
 /// operate on `Timer` rather than any concrete classes handed out by custom
 /// manager implementations.
-class Timer {
+class Profiler {
 public:
-  Timer() = default;
-  Timer(const Timer &other) = default;
-  Timer(Timer &&other) : Timer(other) {
+  Profiler() = default;
+  Profiler(const Profiler &other) = default;
+  Profiler(Profiler &&other) : Profiler(other) {
     other.tm = nullptr;
     other.handle = nullptr;
   }
 
-  Timer &operator=(Timer &&other) {
+  Profiler &operator=(Profiler &&other) {
     tm = other.tm;
     handle = other.handle;
     other.tm = nullptr;
@@ -228,19 +228,19 @@ public:
   /// stopped.
   ///
   /// The `nameBuilder` function is not guaranteed to be called.
-  Timer nest(const void *id, function_ref<std::string()> nameBuilder) {
-    return tm ? Timer(*tm, tm->nestTimer(handle, id, nameBuilder)) : Timer();
+  Profiler nest(const void *id, function_ref<std::string()> nameBuilder) {
+    return tm ? Profiler(*tm, tm->nestTimer(handle, id, nameBuilder)) : Profiler();
   }
 
   /// See above.
-  Timer nest(TimingIdentifier name) {
+  Profiler nest(TimingIdentifier name) {
     return tm ? nest(name.getAsOpaquePointer(), [=]() { return name.str(); })
-              : Timer();
+              : Profiler();
   }
 
   /// See above.
-  Timer nest(StringRef name) {
-    return tm ? nest(TimingIdentifier::get(name, *tm)) : Timer();
+  Profiler nest(StringRef name) {
+    return tm ? nest(TimingIdentifier::get(name, *tm)) : Profiler();
   }
 
   /// Hide the timer in timing reports and directly show its children.
@@ -250,7 +250,7 @@ public:
   }
 
 protected:
-  Timer(TimingManager &tm, void *handle) : tm(&tm), handle(handle) {}
+  Profiler(TimingManager &tm, void *handle) : tm(&tm), handle(handle) {}
 
   // Allow the `TimingManager` access to the above constructor.
   friend class TimingManager;
@@ -272,11 +272,11 @@ private:
 class TimingScope {
 public:
   TimingScope() {}
-  TimingScope(const Timer &other) : timer(other) {
+  TimingScope(const Profiler &other) : timer(other) {
     if (timer)
       timer.start();
   }
-  TimingScope(Timer &&other) : timer(std::move(other)) {
+  TimingScope(Profiler &&other) : timer(std::move(other)) {
     if (timer)
       timer.start();
   }
@@ -299,7 +299,7 @@ public:
   /// Manually stop the timer early.
   void stop() {
     timer.stop();
-    timer = Timer();
+    timer = Profiler();
   }
 
   /// Create a nested timing scope.
@@ -317,7 +317,7 @@ public:
 
 private:
   /// The wrapped timer.
-  Timer timer;
+  Profiler timer;
 };
 
 //===----------------------------------------------------------------------===//

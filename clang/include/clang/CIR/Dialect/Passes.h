@@ -47,6 +47,7 @@ std::unique_ptr<Pass> createCallConvLoweringPass();
 // Falcon Passes.
 std::unique_ptr<Pass> createCIRRaiseToAffinePass();
 std::unique_ptr<Pass> createCIRFindOffsetPass();
+std::unique_ptr<Pass> createCIRRevertLICMPass();
 std::unique_ptr<Pass> createComputeDepsPass();
 
 void populateCIRPreLoweringPasses(mlir::OpPassManager &pm, bool useCCLowering);

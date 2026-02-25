@@ -1,5 +1,6 @@
 #include "PassDetail.h"
 #include "FalconUtilities.h"
+#include "Profiler.h"
 #include "mlir/Analysis/Presburger/Barvinok.h"
 #include "mlir/Analysis/Presburger/IntegerRelation.h"
 #include "mlir/Analysis/Presburger/Simplex.h"
@@ -14,6 +15,8 @@ using namespace affine;
 using namespace mlir::presburger;
 using namespace mlir::presburger::detail;
 
+Profiler mlir::profiler;
+
 namespace {
 
 template<class T>
@@ -21,9 +24,23 @@ template<class T>
   llvm::errs() << "point = "; llvm::interleaveComma(point, llvm::errs()); llvm::errs() << "\n";
 }
 
+struct ComputeDeps;
+class LessAccess {
+  ComputeDeps *parent;
+
+public:
+  LessAccess(ComputeDeps *parent): parent(parent) {}
+  bool operator()(Operation *l, Operation *r) const;
+};
+
 using IntVector = SmallVector<int64_t>;
 using LoopBound = std::pair<AffineBound, AffineBound>;
-using DependencyMap = DenseMap<Operation*, PresburgerRelation>;
+using DependencyMap = std::map<Operation*, PresburgerRelation, LessAccess>;
+
+struct DepsTotal {
+  PresburgerRelation depsTotal;
+  DenseMap<SmallVector<unsigned>, Operation*> index2Statement;
+};
 
 struct ComputeDeps : public ComputeDepsBase<ComputeDeps> {
   using ComputeDepsBase::ComputeDepsBase;
@@ -35,12 +52,15 @@ struct ComputeDeps : public ComputeDepsBase<ComputeDeps> {
 
   void addBounds(IntegerRelation &rel, ArrayRef<LoopBound> loopBound, unsigned dims, unsigned offset);
   void addLexLess(PresburgerRelation &rel, IntegerRelation base, Operation *dep, Operation *sink, unsigned depDims, unsigned srcDims);
-  void countCapacityMisses(const PresburgerRelation &domain, DenseMap<Operation *, std::vector<PresburgerRelation>> &instances);
+  void countCapacityMisses(const PresburgerRelation &domain, DenseMap<unsigned, std::vector<PresburgerRelation>> &instances);
   void oldCountCapacityMisses(const PresburgerRelation &domain, DenseMap<Operation *, std::vector<PresburgerRelation>> &instances);
 
-  IntegerRelation getDomain(GetElementOp sink);
+  bool isTooFarAway(Operation *dep, Operation *sink);
+  DynamicAPInt cachelinesAccessed(Operation *loop);
+  IntegerRelation getDomain(Operation *sink);
+  DepsTotal getDepsTotal(Operation *sink, const DependencyMap &depsIndividual);
   PresburgerRelation getDeps(Operation *sink, Operation *dep);
-  llvm::SmallVector<Operation*> findRelevant();
+  llvm::SmallVector<Operation*> findRelevant(Operation *parent);
   IntVector extractCoefficients(AffineExpr expr, const SmallVector<Value> &symbolValues, int dims);
   IntVector extractCoefficients(Value value, int dims);
 private:
@@ -60,12 +80,18 @@ private:
   // The variables `z` might be given index { 1 },
   // and `i` { 2 }, `j` { 2, 1 }, `k` { 2, 2 } respectively.
   DenseMap<Operation*, SmallVector<unsigned>> loopVarIndex;
+  DenseMap<Operation*, DynamicAPInt> domainSizeCache;
   friend class LessAccess;
 
   DynamicAPInt cacheSize;
   int cachelineSize;
   DynamicAPInt compulsoryMisses, capacityMisses;
 };
+
+bool LessAccess::operator()(Operation *l, Operation *r) const {
+  assert(parent->lexIndex.count(l) && parent->lexIndex.count(r));
+  return parent->lexIndex[l] < parent->lexIndex[r];
+}
 
 // Checks whether an operation is a CIR operation representing a constant integer.
 std::optional<int64_t> getConstantOnLoopBound(Value value) {
@@ -239,10 +265,33 @@ unsigned findCommonLoopDepth(Operation *x, Operation *y) {
 
 /// Finds the outermost operation inside the function that contains op.
 Operation *findOutermostOperation(Operation *op) {
-  Operation *outermost;
-  for (outermost = op->getParentOp(); !isa<FuncOp>(outermost); outermost = outermost->getParentOp())
-    ;
+  Operation *outermost = op->getParentOp();
+  if (isa<FuncOp>(outermost))
+    return op;
+  while (!isa<FuncOp>(outermost->getParentOp()))
+    outermost = outermost->getParentOp();
   return outermost;
+}
+
+unsigned getBaseId(Operation *sink) {
+  auto baseAttr = getAttr<ArrayBaseAttr>(sink);
+  return baseAttr.getId();
+}
+
+int getDimension(Operation *sink) {
+  return getAttr<ArrayOffsetAttr>(sink).getMap().getNumDims();
+}
+
+AffineMap getMap(Operation *sink) {
+  return getAttr<ArrayOffsetAttr>(sink).getMap();
+}
+
+Operation *getGEP(Operation *sink) {
+  if (auto load = dyn_cast<LoadOp>(sink))
+    return load.getAddr().getDefiningOp();
+  if (auto store = dyn_cast<StoreOp>(sink))
+    return store.getAddr().getDefiningOp();
+  assert(false && "get gep failed");
 }
 
 void ComputeDeps::addBounds(IntegerRelation &rel, ArrayRef<LoopBound> loopBound, unsigned dims, unsigned offset) {
@@ -512,8 +561,10 @@ DynamicAPInt enumerateFeasiblePoints(const IntegerRelation &rel, std::vector<Dyn
     if (newrel.getNumVars() == 1) {
       auto lb = rel.getConstantBound(BoundType::LB, 1);
       auto ub = rel.getConstantBound(BoundType::UB, 1);
+      // Besides the unbounded case, there is another situation where lb and ub
+      // can be nullopt: when `rel` is empty.
       if (!lb || !ub)
-        assert(false && "the region should be bounded!");
+        return DynamicAPInt(0);
 
       if (*ub - *lb <= 5)
         barvinokable = false;
@@ -598,9 +649,12 @@ void ComputeDeps::markLexicalOrder() {
 
 void ComputeDeps::markLoopInductionVars(mlir::Operation *op, SmallVector<unsigned> indices, unsigned &nextIndex) {
   if (auto forOp = dyn_cast<AffineForOp>(op)) {
-    unsigned newLoopIndex = nextIndex++;
+    // newLoopIndex = min(lexIndex in the loop)
+    auto relevant = findRelevant(forOp);
+    unsigned newLoopIndex = lexIndex.at(*std::min_element(relevant.begin(), relevant.end(), [&](Operation *l, Operation *r) {
+      return lexIndex.at(l) < lexIndex.at(r);
+    }));
     indices.push_back(newLoopIndex);
-    // TODO: loopVarIndex = min(lexIndex in the loop)
     loopVarIndex[op] = indices;
   }
 
@@ -611,6 +665,22 @@ void ComputeDeps::markLoopInductionVars(mlir::Operation *op, SmallVector<unsigne
       }
     }
   }
+}
+
+bool ComputeDeps::isTooFarAway(Operation *dep, Operation *sink) {
+  auto *begin = findOutermostOperation(dep);
+  auto *end = findOutermostOperation(sink);
+  if (begin == end)
+    return false;
+
+  DynamicAPInt total(0);
+  for (auto *op = begin->getNextNode(); op && op != end; op = op->getNextNode()) {
+    if (op->getNumRegions() == 0)
+      continue;
+
+    total += cachelinesAccessed(op);
+  }
+  return total > cacheSize;
 }
 
 /// Adds constraints `dep < sink` (lexicographically), based on the constraints
@@ -658,18 +728,7 @@ void ComputeDeps::addLexLess(PresburgerRelation &rel, IntegerRelation base,
   }
 }
 
-class LessAccess {
-  ComputeDeps *parent;
-
-public:
-  LessAccess(ComputeDeps *parent): parent(parent) {}
-  bool operator()(Operation *l, Operation *r) const {
-    assert(parent->lexIndex.count(l) && parent->lexIndex.count(r));
-    return parent->lexIndex[l] < parent->lexIndex[r];
-  }
-};
-
-IntegerRelation ComputeDeps::getDomain(GetElementOp sink) {
+IntegerRelation ComputeDeps::getDomain(Operation *sink) {
   auto baseAttr = getAttr<ArrayBaseAttr>(sink);
   auto offsetAttr = getAttr<ArrayOffsetAttr>(sink);
   
@@ -709,40 +768,92 @@ IntegerRelation ComputeDeps::getDomain(GetElementOp sink) {
   return sinkDomain;
 }
 
-unsigned getBaseId(GetElementOp sink) {
-  auto baseAttr = getAttr<ArrayBaseAttr>(sink);
-  return baseAttr.getId();
-}
-
-int getDimension(GetElementOp sink) {
-  return getAttr<ArrayOffsetAttr>(sink).getMap().getNumDims();
-}
-
-AffineMap getMap(GetElementOp sink) {
-  return getAttr<ArrayOffsetAttr>(sink).getMap();
-}
-
-GetElementOp getGEP(Operation *sink) {
-  if (auto load = dyn_cast<LoadOp>(sink))
-    return cast<GetElementOp>(load.getAddr().getDefiningOp());
-  if (auto store = dyn_cast<StoreOp>(sink))
-    return cast<GetElementOp>(store.getAddr().getDefiningOp());
-  assert(false && "get gep failed");
-}
-
-llvm::SmallVector<Operation*> ComputeDeps::findRelevant() {
-  auto *module = getOperation();
+llvm::SmallVector<Operation*> ComputeDeps::findRelevant(Operation *parent) {
   llvm::SmallVector<Operation*> result;
-  auto loads = findAll<LoadOp>(module);
-  llvm::copy_if(loads, std::back_inserter(result), [](LoadOp op) { return isa<GetElementOp>(op.getAddr().getDefiningOp()); });
-  auto stores = findAll<StoreOp>(module);
-  llvm::copy_if(stores, std::back_inserter(result), [](StoreOp op) { return isa<GetElementOp>(op.getAddr().getDefiningOp()); });
+  auto loads = findAll<LoadOp>(parent);
+  llvm::copy_if(loads, std::back_inserter(result), [](LoadOp op) -> bool {
+    return !!getAttr<ArrayOffsetAttr>(op.getAddr().getDefiningOp());
+  });
+  auto stores = findAll<StoreOp>(parent);
+  llvm::copy_if(stores, std::back_inserter(result), [](StoreOp op) -> bool {
+    return !!getAttr<ArrayOffsetAttr>(op.getAddr().getDefiningOp());
+  });
   return result;
+}
+
+DynamicAPInt ComputeDeps::cachelinesAccessed(Operation *loop) {
+  if (auto it = domainSizeCache.find(loop); it != domainSizeCache.end())
+    return it->second;
+
+  auto sinks = findRelevant(loop);
+
+  DenseMap<unsigned, std::vector<IntegerRelation>> accesses;
+
+  for (auto *sink : sinks) {
+    auto maybeBound = getLoopBounds(sink);
+    if (!maybeBound)
+      continue;
+    auto bound = *maybeBound;
+
+    Operation *gep = getGEP(sink);
+    if (!getAttr<ArrayBaseAttr>(gep) || !getAttr<ArrayOffsetAttr>(gep))
+      continue;
+    unsigned srcDims = getDimension(gep);
+    auto map = getMap(gep);
+    unsigned arrayId = getBaseId(gep);
+
+    IntegerRelation domain(PresburgerSpace::getSetSpace(srcDims));
+    addBounds(domain, bound, srcDims, 0);
+
+    unsigned arrDims = map.getNumResults();
+    IntegerRelation accessRel(PresburgerSpace::getRelationSpace(srcDims, arrDims));
+    for (unsigned i = 0; i < arrDims; i++) {
+      auto coeffs = extractCoefficients(map.getResult(i), {}, srcDims);
+      coeffs.resize(srcDims + arrDims + 1);
+      // Move constant to the back.
+      coeffs[srcDims + arrDims] = coeffs[srcDims];
+      coeffs[srcDims] = 0;
+      // Get -1 at the correct place.
+      if (i != arrDims - 1) {
+        coeffs[srcDims + i] = -1;
+        accessRel.addEquality(coeffs);
+      } else {
+        // The >= 0 part.
+        coeffs[srcDims + arrDims - 1] = -cachelineSize;
+        accessRel.addInequality(coeffs);
+
+        // The <= cachelineSize - 1 part.
+        for (auto &x : coeffs)
+          x *= -1;
+        coeffs[srcDims + arrDims] += cachelineSize - 1;
+        accessRel.addInequality(coeffs);
+      }
+    }
+
+    // Compose this with the map.
+    domain.compose(accessRel);
+    domain.simplify();
+    accesses[arrayId].push_back(domain);
+  }
+
+  DynamicAPInt total(0);
+  for (auto &[_, rels] : accesses) {
+    assert(!rels.empty());
+    // The relations are compatible; they have and only have `arrDims` range variables.
+    PresburgerRelation rel(rels[0]);
+    for (unsigned i = 1; i < rels.size(); i++)
+      rel.unionInPlace(rels[i]);
+
+    total += countIntPointsWithoutParameters(rel);
+  }
+
+  domainSizeCache[loop] = total;
+  return total;
 }
 
 PresburgerRelation ComputeDeps::getDeps(Operation *sink, Operation *depp) {
   auto empty = PresburgerRelation::getEmpty(PresburgerSpace::getSetSpace());
-  auto dep = getGEP(depp);
+  auto *dep = getGEP(depp);
   // It's only possible when the operation and sink access the same array.
   if (auto attr = getAttr<ArrayBaseAttr>(dep); !attr || attr.getId() != getBaseId(getGEP(sink)))
     return empty;
@@ -820,53 +931,36 @@ PresburgerRelation ComputeDeps::getDeps(Operation *sink, Operation *depp) {
 
     // The >= 0 part for `dep`.
     std::copy(depCoeff.begin(), depCoeff.end(), ineq.begin() + srcDims);
+    ineq.back() = depCoeff.back();
+    // Note that the constant term is implicitly overwritten.
     ineq[depDims + srcDims] = -cachelineSize;
-    ineq.back() = 0;
     disjunct.addInequality(ineq);
     // The <= c - 1 part for `dep`.
     for (auto &x : ineq)
       x *= -1;
-    ineq.back() = cachelineSize - 1;
+    ineq.back() += cachelineSize - 1;
     disjunct.addInequality(ineq);
 
     // The >= 0 part for `src`.
     ineq.clear(); ineq.resize(dims + 2);
     std::copy(srcCoeff.begin(), srcCoeff.end(), ineq.begin());
+    // Unlike the previous situation, we need to explicitly set the constant
+    // term to 0 as it is in a wrong place.
+    ineq[srcDims] = 0;
+    ineq.back() = srcCoeff.back();
     ineq[depDims + srcDims] = -cachelineSize;
-    ineq.back() = 0;
     disjunct.addInequality(ineq);
     // The <= c - 1 part for `src`.
     for (auto &x : ineq)
       x *= -1;
-    ineq.back() = cachelineSize - 1;
+    ineq.back() += cachelineSize - 1;
     disjunct.addInequality(ineq);
   }
-  
-  // Record this in the map.
-  // Note that we can't use `deps[dep] = rel`, because operator[]
-  // will attempt to default-construct a PresburgerRelation, which
-  // doesn't have a default constructor.
+
   return rel.simplify();
 }
 
-void ComputeDeps::runOnSink(Operation *sink) {
-  static auto loadstores = findRelevant();
-  auto sinkDomain = getDomain(getGEP(sink));
-  if (sinkDomain.isIntegerEmpty())
-    return;
-
-  // For every statement that sink depends on, record the `depend` relation,
-  // defined below.
-  // We compare lexIndex to maintain a well-defined order. If we use the
-  // order between pointers, it is completely arbitrary.
-  std::map<Operation*, PresburgerRelation, LessAccess> depsIndividual(LessAccess(this));
-
-  // Check whether `sink` depends on `dep`.
-  for (auto *dep : loadstores) {
-    auto rel = getDeps(sink, dep);
-    depsIndividual.insert({ dep, rel });
-  }
-
+DepsTotal ComputeDeps::getDepsTotal(Operation *sink, const DependencyMap &depsIndividual) {
   // Currently, `depend` gives all instances of dependences between
   // the pair (sink, dep). We need to find out the lex-max of all
   // of them.
@@ -911,7 +1005,7 @@ void ComputeDeps::runOnSink(Operation *sink) {
   SmallVector<Operation*> indvars;
 
   // Maps each index vector to statement.
-  // In the example above, it maps { 0 } to D1, { 1, 0 } to D2 and { 1, 1 }
+  // In the example above, it maps { 1 } to D1, { 1, 0 } to D2 and { 1, 1 }
   // to D3.
   DenseMap<SmallVector<unsigned>, Operation*> index2Statement;
 
@@ -947,8 +1041,11 @@ void ComputeDeps::runOnSink(Operation *sink) {
   PresburgerSpace totalSpace = PresburgerSpace::getRelationSpace(srcDims, commonDims - srcDims);
   PresburgerRelation depsTotal = PresburgerRelation::getEmpty(totalSpace);
   for (const auto &[statement, relation] : depsIndividual) {
-    for (const auto &disjunct : relation.getAllDisjuncts()) {
+    if (isTooFarAway(statement, sink))
+      continue;
 
+    auto lexInd = lexIndex[statement];
+    for (const auto &disjunct : relation.getAllDisjuncts()) {
       IntegerRelation newRel(totalSpace);
       newRel.insertVar(VarKind::Local, 0);
 
@@ -970,17 +1067,25 @@ void ComputeDeps::runOnSink(Operation *sink) {
       }
 
       // If some indices are not present for this statement,
-      // we zero out the corresponding entries.
+      // we take those loop variable indices to be lexIndex of the statement,
+      // and the loop variable value to be zero.
       // Note the second-to-last entry, i.e. the last dimension is 
       // reserved for statement index, which is always present.
-      for (unsigned i = indices.size() * 2 + srcDims; i < commonDims - 1; i++) {
+      for (unsigned i = indices.size() * 2 + srcDims; i < commonDims - 1; i += 2) {
         SmallVector<DynamicAPInt> equality(commonDims + 2);
         equality[i] = 1;
+        equality.back() = -lexInd;
+        newRel.addEquality(equality);
+        indices.push_back(lexInd);
+
+        equality[i] = 0;
+        equality[i + 1] = 1;
+        equality.back() = 0;
         newRel.addEquality(equality);
       }
 
       // Don't forget the statement identifier at the end.
-      const unsigned statementId = lexIndex[statement];
+      const unsigned statementId = lexInd;
       indices.push_back(statementId);
       index2Statement[indices] = statement;
 
@@ -1029,9 +1134,37 @@ void ComputeDeps::runOnSink(Operation *sink) {
     }
   }
 
+  return { depsTotal, index2Statement };
+}
+
+void ComputeDeps::runOnSink(Operation *sink) {
+  static auto loadstores = findRelevant(getOperation());
+  profiler.addSink(lexIndex[sink]);
+  profiler.start(Profiler::DEPS);
+  auto sinkDomain = getDomain(getGEP(sink));
+  if (sinkDomain.isIntegerEmpty())
+    return;
+
+  unsigned srcDims = getDimension(getGEP(sink));
+
+  // For every statement that sink depends on, record the `depend` relation,
+  // defined below.
+  // We compare lexIndex to maintain a well-defined order. If we use the
+  // order between pointers, it is completely arbitrary.
+  DependencyMap depsIndividual(LessAccess(this));
+
+  // Check whether `sink` depends on `dep`.
+  for (auto *dep : loadstores) {
+    auto rel = getDeps(sink, dep);
+    depsIndividual.insert({ dep, rel });
+  }
+
+  auto [depsTotal, index2Statement] = getDepsTotal(sink, depsIndividual);
+
   SymbolicLexOpt lexmax = depsTotal.simplify().findSymbolicIntegerLexMax();
   PWMAFunction deps = lexmax.lexopt;
   deps.simplify();
+  profiler.start(Profiler::COMPMISS);
   assert(lexmax.unboundedDomain.isIntegerEmpty());
   
   // The number of compulsory misses is equal to the number of integer points in `untouched`,
@@ -1049,6 +1182,7 @@ void ComputeDeps::runOnSink(Operation *sink) {
   // between `sink(p)` and `deps(sink(p))`.
   // To do this, we enumerate statements between them.
   for (const auto &piece : deps.getAllPieces()) {
+    profiler.start(Profiler::DIST);
     if (piece.domain.isIntegerEmpty())
       continue;
 
@@ -1116,9 +1250,13 @@ void ComputeDeps::runOnSink(Operation *sink) {
     // "between" relation will be empty.
     for (auto *runner = outermostDep; runner != stop; runner = runner->getNextNode()) {
       auto loads = findAll<LoadOp>(runner);
-      llvm::copy_if(loads, std::back_inserter(inBetween), [](LoadOp op) { return isa<GetElementOp>(op.getAddr().getDefiningOp()); });
+      llvm::copy_if(loads, std::back_inserter(inBetween), [](LoadOp op) -> bool {
+        return !!getAttr<ArrayOffsetAttr>(op.getAddr().getDefiningOp());
+      });
       auto stores = findAll<StoreOp>(runner);
-      llvm::copy_if(stores, std::back_inserter(inBetween), [](StoreOp op) { return isa<GetElementOp>(op.getAddr().getDefiningOp()); });
+      llvm::copy_if(stores, std::back_inserter(inBetween), [](StoreOp op) -> bool {
+        return !!getAttr<ArrayOffsetAttr>(op.getAddr().getDefiningOp());
+      });
     }
 
     // For each collected operation `u`, compute the `reuseInstance` relation.
@@ -1131,7 +1269,7 @@ void ComputeDeps::runOnSink(Operation *sink) {
     // common space, rather than summing the counts together directly.
     // We care only about *unique* accesses between sink and dep, and
     // a naive sum will count access to the same location multiple times.
-    DenseMap<Operation*, std::vector<PresburgerRelation>> instances;
+    DenseMap<unsigned, std::vector<PresburgerRelation>> instances;
 
     for (Operation *u : inBetween) {
       auto uBounds = getLoopBounds(u);
@@ -1208,7 +1346,6 @@ void ComputeDeps::runOnSink(Operation *sink) {
           }
 
           // Add the upper bound.
-          
           for (auto &disjunct : base.getAllDisjuncts()) {
             SmallVector<DynamicAPInt, 4> upper(disjunct.getNumVars() + 1);
             for (unsigned j = 0; j < srcDims; j++)
@@ -1276,7 +1413,7 @@ void ComputeDeps::runOnSink(Operation *sink) {
         llvm::errs() << "reuse = "; reuseInstance.simplify().dump();
       }
       
-      auto getelem = getGEP(u);
+      auto *getelem = getGEP(u);
       auto attr = getAttr<ArrayOffsetAttr>(getelem);
       auto accessMap = attr.getMap();
       
@@ -1298,13 +1435,12 @@ void ComputeDeps::runOnSink(Operation *sink) {
         } else {
           // The >= 0 part.
           coeffs[uDims + arrDims - 1] = -cachelineSize;
-          coeffs[uDims + arrDims] = 0;
           accessRel.addInequality(coeffs);
 
           // The <= cachelineSize - 1 part.
           for (auto &x : coeffs)
             x *= -1;
-          coeffs[uDims + arrDims] = cachelineSize - 1;
+          coeffs[uDims + arrDims] += cachelineSize - 1;
           accessRel.addInequality(coeffs);
         }
       }
@@ -1318,11 +1454,14 @@ void ComputeDeps::runOnSink(Operation *sink) {
       reuseInstance = reuseInstance.computeReprWithOnlyDivLocals().simplify();
 
       // Clang IR doesn't use block arguments, so it's fine.
-      instances[getelem.getBase().getDefiningOp()].push_back(reuseInstance);
+      instances[getBaseId(getelem)].push_back(reuseInstance);
     } // for each u in between
 
+    profiler.start(Profiler::COUNT);
     countCapacityMisses(domain, instances);
+    profiler.end();
   } // for each piece of lexmax
+  profiler.report();
 }
 
 [[gnu::unused]] DynamicAPInt enumeratePoints(IntegerRelation rel, QuasiPolynomial count) {
@@ -1436,7 +1575,7 @@ void ComputeDeps::runOnSink(Operation *sink) {
   return DynamicAPInt(0);
 }
 
-void ComputeDeps::countCapacityMisses(const PresburgerRelation &domain, DenseMap<Operation *, std::vector<PresburgerRelation>> &instances) {
+void ComputeDeps::countCapacityMisses(const PresburgerRelation &domain, DenseMap<unsigned, std::vector<PresburgerRelation>> &instances) {
   auto srcDims = domain.getNumRangeVars();
   unsigned maxdim = 0;
   for (const auto &[_, reuses] : instances)
@@ -1448,7 +1587,7 @@ void ComputeDeps::countCapacityMisses(const PresburgerRelation &domain, DenseMap
   auto disjointUnion = PresburgerRelation::getEmpty(unionSpace);
 
   unsigned z = 0;
-  for (const auto &[_, reuses] : instances) {
+  for (const auto &[arr, reuses] : instances) {
     // We must union the relations for the same array, because we only care
     // about *unique* accesses for each address.
     assert(!reuses.empty());
@@ -1548,11 +1687,11 @@ void ComputeDeps::countCapacityMisses(const PresburgerRelation &domain, DenseMap
       auto difference = (count - QuasiPolynomial(count.getNumInputs(), cacheSize)).collectTerms();
       for (const auto &disjunct : divonly.getAllDisjuncts()) {
         // Method 1: Optimized enumeration.
-        if (0)
+        if (1)
           capacityMisses += enumeratePoints(disjunct, difference);
 
         // Method 2: Naive enumeration, without optimization.
-        if (1) {
+        if (0) {
           std::set<std::vector<DynamicAPInt>> feasiblePoints;
           std::vector<DynamicAPInt> current;
           naiveEnumerateFeasiblePoints(disjunct, feasiblePoints, current);
@@ -1571,7 +1710,7 @@ void ComputeDeps::countCapacityMisses(const PresburgerRelation &domain, DenseMap
 
     auto misses = countIntPointsWithoutParameters(rel);
     if (0) {
-      llvm::errs() << "region = "; region.dump();
+      llvm::errs() << "region = "; region.simplify().dump();
       llvm::errs() << "count = "; count.dump(); llvm::errs() << "\n";
       llvm::errs() << "misses = " << misses << "\n";
     }
@@ -1580,21 +1719,8 @@ void ComputeDeps::countCapacityMisses(const PresburgerRelation &domain, DenseMap
 }
 
 void ComputeDeps::runOnOperation() {
-  // IntegerRelation rel(PresburgerSpace::getRelationSpace(0, 1, 2));
-  // rel.addInequality({ 0, 0, 1, -4 });
-  // rel.addInequality({ 0, -1, 0, 7 });
-  // rel.addInequality({ 0, 1, -1, -2 });
-  // rel.addInequality({ 2, 0, -1, 0 });
-  // rel.addInequality({ -2, 0, 1, 1 });
-  // rel.addInequality({ 2, 1, -2, -3 });
-  // auto result = countIntegerPoints(PresburgerRelation(rel));
-  // for (auto &[r, c] : result) {
-  //   llvm::errs() << "region = "; r.dump();
-  //   llvm::errs() << "has (3, 4) = " << r.containsPoint({ 3, 4 }) << "\n";
-  //   llvm::errs() << "count = "; c.dump(); llvm::errs() << "\n";
-  // }
-  // return;
-
+  llvm::Timer timer;
+  timer.startTimer();
   auto *module = getOperation();
   markLexicalOrder();
   unsigned nextIndex = 1;
@@ -1605,13 +1731,17 @@ void ComputeDeps::runOnOperation() {
   scanf("%d%d", &cacheInput, &cachelineSize);
   cacheSize = cacheInput;
 
-  auto getelems = findRelevant(); 
+  auto getelems = findRelevant(module);
   for (auto *sink : getelems)
     runOnSink(sink);
+
+  timer.stopTimer();
+  double time = timer.getTotalTime().getWallTime();
 
   llvm::errs() << "total compulsory misses = " << compulsoryMisses << "\n";
   llvm::errs() << "total capacity misses = " << capacityMisses << "\n";
   llvm::errs() << "total misses = " << capacityMisses + compulsoryMisses << "\n";
+  llvm::errs() << "time elapsed: " << formatTime(time) << "\n";
 }
 
 } // namespace

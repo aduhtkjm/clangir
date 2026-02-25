@@ -13,6 +13,16 @@ def RaiseToAffine : Pass<"cir-falcon-raise-to-affine"> {
   let dependentDialects = ["cir::CIRDialect", "affine::AffineDialect"];
 }
 
+def RevertLICM : Pass<"cir-revert-licm"> {
+  let summary = "The reverse of loop invariant code motion";
+  let description = [{
+    We move the GEP or pointer strides into the deepest loop nests, just before they
+    are required by the corresponding load or store.
+  }];
+  let constructor = "mlir::createCIRRevertLICMPass()";
+  let dependentDialects = ["cir::CIRDialect", "affine::AffineDialect"];
+}
+
 def FindOffset : Pass<"cir-falcon-find-offset"> {
   let summary = "Find offset of arrays";
   let description = [{
