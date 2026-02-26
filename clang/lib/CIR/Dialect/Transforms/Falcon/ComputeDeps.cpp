@@ -890,7 +890,7 @@ PresburgerRelation ComputeDeps::getDeps(Operation *sink, Operation *depp) {
     /*numReservedCols=*/space.getNumVars() + 1, space);
   
   // All offsets must be equal.
-  // For the last dimension, the conditoin changes to "offset divided by cacheline size must be equal".
+  // For the last dimension, the condition changes to "offset divided by cacheline size must be equal".
   auto sinkMap = getMap(getGEP(sink));
   assert(depMap.getNumResults() == sinkMap.getNumResults());
   for (unsigned i = 0; i < depMap.getNumResults() - 1; i++) {
@@ -899,7 +899,7 @@ PresburgerRelation ComputeDeps::getDeps(Operation *sink, Operation *depp) {
 
     // Concatenate the coefficients together, and pay special attention to constants
     // at the end.
-    auto eqConstant = depCoeff.back();
+    auto eqConstant = srcCoeff.back();
     srcCoeff.pop_back();
     for (auto coeff : depCoeff)
       srcCoeff.push_back(-coeff);
@@ -957,6 +957,9 @@ PresburgerRelation ComputeDeps::getDeps(Operation *sink, Operation *depp) {
     disjunct.addInequality(ineq);
   }
 
+  // llvm::errs() << "sink = "; sink->dump();
+  // llvm::errs() << "deps = "; depp->dump();
+  // llvm::errs() << "rel = "; rel.simplify().dump();
   return rel.simplify();
 }
 
@@ -1452,8 +1455,6 @@ void ComputeDeps::runOnSink(Operation *sink) {
 
       reuseInstance = extraSimplify(reuseInstance);
       reuseInstance = reuseInstance.computeReprWithOnlyDivLocals().simplify();
-
-      // Clang IR doesn't use block arguments, so it's fine.
       instances[getBaseId(getelem)].push_back(reuseInstance);
     } // for each u in between
 
@@ -1683,6 +1684,7 @@ void ComputeDeps::countCapacityMisses(const PresburgerRelation &domain, DenseMap
       }
     }
     if (!barvinokable) {
+      llvm::errs() << "enumeration triggered\n";
       auto divonly = intersect.simplify().computeReprWithOnlyDivLocals();
       auto difference = (count - QuasiPolynomial(count.getNumInputs(), cacheSize)).collectTerms();
       for (const auto &disjunct : divonly.getAllDisjuncts()) {

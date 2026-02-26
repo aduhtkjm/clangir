@@ -10,6 +10,7 @@
 #include "mlir/Analysis/Presburger/Simplex.h"
 #include "mlir/Analysis/Presburger/Utils.h"
 #include "llvm/ADT/Sequence.h"
+#include "llvm/Support/Timer.h"
 #include <algorithm>
 
 using namespace mlir;
@@ -1560,6 +1561,11 @@ void obtainRegions(const PresburgerRelation &rel, const PolyhedronH &current, Sm
   }
 }
 
+struct Chamber {
+  PresburgerRelation region;
+  llvm::SmallBitVector membership;
+};
+
 } // namespace
 
 std::vector<std::pair<PresburgerRelation, QuasiPolynomial>>
@@ -1567,53 +1573,70 @@ mlir::presburger::detail::countIntegerPoints(const PresburgerRelation &rel) {
   std::vector<Region> records;
   SmallVector<unsigned> active;
   auto universe = IntegerRelation::getUniverse(rel.getSpace());
+  // llvm::Timer timer;
+  // timer.startTimer();
   obtainRegions(rel, universe, active, 0, records);
-  // for (auto &rec : records)
-  //   rec.dump();
-
+  // timer.stopTimer();
+  // llvm::errs() << "disjunct count = " << rel.getNumDisjuncts() << "\n";
+  // llvm::errs() << "record count = " << records.size() << "\n";
+  // llvm::errs() << "time = " << timer.getTotalTime().getWallTime() << "\n";
+  
+  // timer.clear();
+  // timer.startTimer();
   unsigned numParams = rel.getNumSymbolVars();
   auto paramSpace = PresburgerSpace::getSetSpace(numParams);
   auto paramUniverse = PresburgerRelation::getUniverse(paramSpace);
-  std::vector<PresburgerRelation> refinement { paramUniverse };
+  std::vector<Chamber> refinement { { paramUniverse, llvm::SmallBitVector(records.size(), false) } };
 
   // For each record region, split current refinement.
-  for (const Region &rec : records) {
-    std::vector<PresburgerRelation> nextRef;
-    for (PresburgerRelation &set : refinement) {
-      // Divide each set into two parts: 
-      // A = S ∩ rec.region
-      PresburgerRelation a = set.intersect(rec.region);
-      if (!a.isIntegerEmpty())
-        nextRef.push_back(a);
-      
-      // B = S \ rec.region
-      PresburgerRelation b = set.subtract(rec.region);
-      if (!b.isIntegerEmpty())
-        nextRef.push_back(b);
+  // TODO: Remark the 200% speedup of `membership`,
+  // and an additional 300% speedup of `simplify`. 
+  for (unsigned i = 0; i < records.size(); ++i) {
+    const Region &rec = records[i];
+    std::vector<Chamber> nextRef;
+
+    for (const Chamber &ch : refinement) {
+      // inside = chamber ∩ rec.region
+      // We also set the i'th bit of `membership`, to mark that this record
+      // will contribute in the chamber. 
+      PresburgerRelation inside = ch.region.intersect(rec.region);
+      if (!inside.isIntegerEmpty()) {
+        Chamber chamber { inside.simplify(), ch.membership };
+        chamber.membership.set(i);
+        nextRef.push_back(std::move(chamber));
+      }
+
+      // outside = chamber \ rec.region
+      PresburgerRelation outside = ch.region.subtract(rec.region);
+      if (!outside.isIntegerEmpty()) {
+        Chamber newCh { outside.simplify(), ch.membership };
+        nextRef.push_back(std::move(newCh));
+      }
     }
+
     refinement.swap(nextRef);
   }
+  // timer.stopTimer();
+  // llvm::errs() << "refinement count = " << refinement.size() << "\n";
+  // llvm::errs() << "time = " << timer.getTotalTime().getWallTime() << "\n";
 
   // Now refinement is a list of pairwise-disjoint chambers.
   // For each refinement chamber, collect contributions and sum quasi-polynomials.
   std::vector<std::pair<PresburgerRelation, QuasiPolynomial>> result;
-  for (const PresburgerRelation &chamber : refinement) {
-    // Build the inclusion-exclusion sum.
-     
-    // A zero polynomial.
+  for (const Chamber &chamber : refinement) {
     QuasiPolynomial q(numParams, 0);
-    for (const Region &rec : records) {
-      // The chamber is either fully inside `rec.region`, or fully disjoint with it.
-      PresburgerRelation intersect = chamber.intersect(rec.region);
-      if (intersect.isIntegerEmpty())
+
+    for (unsigned i = 0; i < records.size(); ++i) {
+      // Only sum the parts that have contribution.
+      if (!chamber.membership.test(i))
         continue;
-      // rec.count contributes to the chamber.
-      // According to inclusion-exclusion principle, the coefficient is
-      // (-1)^{|I|+1}, where I is the number of insections.
+
+      const Region &rec = records[i];
       int parity = (rec.indices.size() % 2 == 1) ? 1 : -1;
       q = q + rec.count * parity;
     }
-    result.emplace_back(chamber.simplify(), q.collectTerms());
+
+    result.emplace_back(chamber.region.simplify(), q.collectTerms());
   }
 
   return result;
