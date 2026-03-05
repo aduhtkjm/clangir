@@ -6,6 +6,8 @@
 #include "mlir/Analysis/Presburger/Simplex.h"
 #include "clang/CIR/Dialect/IR/CIRDialect.h"
 #include "clang/CIR/Dialect/Passes.h"
+#include "llvm/Support/ThreadPool.h"
+#include <future>
 #include <sys/wait.h>
 #include <unistd.h>
 
@@ -20,9 +22,11 @@ Profiler mlir::profiler;
 namespace {
 
 template<class T>
-[[gnu::unused]] static void dumpVector(const T &point) {
-  llvm::errs() << "point = "; llvm::interleaveComma(point, llvm::errs()); llvm::errs() << "\n";
+[[gnu::unused]] static void dumpVector(const std::string &str, const T &point) {
+  llvm::errs() << str << " = "; llvm::interleaveComma(point, llvm::errs()); llvm::errs() << "\n";
 }
+
+#define dumpVector(x) dumpVector(#x, x)
 
 struct ComputeDeps;
 class LessAccess {
@@ -42,27 +46,34 @@ struct DepsTotal {
   DenseMap<SmallVector<unsigned>, Operation*> index2Statement;
 };
 
+struct MissCount {
+  DynamicAPInt compulsoryMisses, capacityMisses;
+};
+
 struct ComputeDeps : public ComputeDepsBase<ComputeDeps> {
   using ComputeDepsBase::ComputeDepsBase;
   
   void runOnOperation() override;
-  void runOnSink(Operation *sink);
+  MissCount runOnSink(Operation *sink);
   void markLexicalOrder();
   void markLoopInductionVars(Operation *op, SmallVector<unsigned> indices, unsigned &nextIndex);
 
-  void addBounds(IntegerRelation &rel, ArrayRef<LoopBound> loopBound, unsigned dims, unsigned offset);
+  void addBounds(IntegerRelation &rel, ArrayRef<LoopBound> loopBound, unsigned dims, unsigned offset, unsigned until = -1);
   void addLexLess(PresburgerRelation &rel, IntegerRelation base, Operation *dep, Operation *sink, unsigned depDims, unsigned srcDims);
-  void countCapacityMisses(const PresburgerRelation &domain, DenseMap<unsigned, std::vector<PresburgerRelation>> &instances);
   void oldCountCapacityMisses(const PresburgerRelation &domain, DenseMap<Operation *, std::vector<PresburgerRelation>> &instances);
+  void recordAccessBounds(AffineForOp loop);
 
   bool isTooFarAway(Operation *dep, Operation *sink);
   DynamicAPInt cachelinesAccessed(Operation *loop);
+  DynamicAPInt countCapacityMisses(const PresburgerRelation &domain, DenseMap<unsigned, std::vector<PresburgerRelation>> &instances);
   IntegerRelation getDomain(Operation *sink);
   DepsTotal getDepsTotal(Operation *sink, const DependencyMap &depsIndividual);
   PresburgerRelation getDeps(Operation *sink, Operation *dep);
   llvm::SmallVector<Operation*> findRelevant(Operation *parent);
   IntVector extractCoefficients(AffineExpr expr, const SmallVector<Value> &symbolValues, int dims);
   IntVector extractCoefficients(Value value, int dims);
+  llvm::DenseMap<unsigned, std::vector<IntegerRelation>> getAccessRelationIn(Operation *loop, unsigned numSymbols = 0);
+  std::pair<DynamicAPInt, DynamicAPInt> estimateDistance(Operation *sink, Operation *dep, const PresburgerRelation &domain, ArrayRef<IntVector> d);
 private:
   // For two operations S and T,
   // lexIndex[S] < lexIndex[T] iff. S is lexically before T in the IR.
@@ -81,16 +92,15 @@ private:
   // and `i` { 2 }, `j` { 2, 1 }, `k` { 2, 2 } respectively.
   DenseMap<Operation*, SmallVector<unsigned>> loopVarIndex;
   DenseMap<Operation*, DynamicAPInt> domainSizeCache;
+  DenseMap<AffineForOp, DynamicAPInt> accessLowerBound, accessUpperBound;
   friend class LessAccess;
 
   DynamicAPInt cacheSize;
   int cachelineSize;
-  DynamicAPInt compulsoryMisses, capacityMisses;
 };
 
 bool LessAccess::operator()(Operation *l, Operation *r) const {
-  assert(parent->lexIndex.count(l) && parent->lexIndex.count(r));
-  return parent->lexIndex[l] < parent->lexIndex[r];
+  return parent->lexIndex.at(l) < parent->lexIndex.at(r);
 }
 
 // Checks whether an operation is a CIR operation representing a constant integer.
@@ -131,8 +141,7 @@ IntVector ComputeDeps::extractCoefficients(Value value, int dims) {
 
   if (auto loopvar = dyn_cast<AffineForOp>(op)) {
     // The outermost loop will have loopVarIndex of size 1, but we want the subscript to be 0.
-    assert(loopVarIndex.count(loopvar));
-    auto depth = loopVarIndex[loopvar].size() - 1;
+    auto depth = loopVarIndex.at(loopvar).size() - 1;
     result[depth] += 1;
     return result;
   }
@@ -145,6 +154,10 @@ IntVector ComputeDeps::extractCoefficients(Value value, int dims) {
     case BinOpKind::Add:
       for (int i = 0; i < dims + 1; i++)
         l[i] += r[i];
+      return l;
+    case BinOpKind::Sub:
+      for (int i = 0; i < dims + 1; i++)
+        l[i] -= r[i];
       return l;
     default:
       llvm_unreachable("NYI: undealt binop");
@@ -294,8 +307,10 @@ Operation *getGEP(Operation *sink) {
   assert(false && "get gep failed");
 }
 
-void ComputeDeps::addBounds(IntegerRelation &rel, ArrayRef<LoopBound> loopBound, unsigned dims, unsigned offset) {
+void ComputeDeps::addBounds(IntegerRelation &rel, ArrayRef<LoopBound> loopBound, unsigned dims, unsigned offset, unsigned until) {
   for (auto [i, bound] : enumerate(loopBound)) {
+    if (i >= until)
+      break;
     auto [low, high] = bound;
     // We must insert `dims(sinkMap)` elements at front.
     auto coeffLow = extractCoefficients(low.getMap().getResult(0), low.getOperands(), dims);
@@ -453,8 +468,8 @@ PresburgerRelation extraSimplify(PresburgerRelation rel) {
         poly.addInequality(disjunct.getInequality(i));
         continue;
       }
-      Fraction minimum = maybeMaximum.getBoundedOptimum();
-      Fraction maximum = maybeMaximum.getBoundedOptimum();
+      const Fraction &minimum = maybeMaximum.getBoundedOptimum();
+      const Fraction &maximum = maybeMaximum.getBoundedOptimum();
       if (minimum == maximum && minimum == 0)
         poly.addEquality(disjunct.getInequality(i));
       else
@@ -651,11 +666,13 @@ void ComputeDeps::markLoopInductionVars(mlir::Operation *op, SmallVector<unsigne
   if (auto forOp = dyn_cast<AffineForOp>(op)) {
     // newLoopIndex = min(lexIndex in the loop)
     auto relevant = findRelevant(forOp);
-    unsigned newLoopIndex = lexIndex.at(*std::min_element(relevant.begin(), relevant.end(), [&](Operation *l, Operation *r) {
-      return lexIndex.at(l) < lexIndex.at(r);
-    }));
-    indices.push_back(newLoopIndex);
-    loopVarIndex[op] = indices;
+    if (!relevant.empty()) {
+      unsigned newLoopIndex = lexIndex.at(*std::min_element(relevant.begin(), relevant.end(), [&](Operation *l, Operation *r) {
+        return lexIndex.at(l) < lexIndex.at(r);
+      }));
+      indices.push_back(newLoopIndex);
+      loopVarIndex[op] = indices;
+    }
   }
 
   for (Region &region : op->getRegions()) {
@@ -781,19 +798,24 @@ llvm::SmallVector<Operation*> ComputeDeps::findRelevant(Operation *parent) {
   return result;
 }
 
-DynamicAPInt ComputeDeps::cachelinesAccessed(Operation *loop) {
-  if (auto it = domainSizeCache.find(loop); it != domainSizeCache.end())
-    return it->second;
+unsigned getLoopDepth(Operation *op) {
+  unsigned loopDepth = 0;
+  for (auto *runner = op->getParentOp(); !isa<FuncOp>(runner); runner = runner->getParentOp()) {
+    if (isa<AffineForOp>(runner))
+      loopDepth++;
+  }
+  return loopDepth;
+}
 
+DenseMap<unsigned, std::vector<IntegerRelation>> ComputeDeps::getAccessRelationIn(Operation *loop, unsigned numSymbols) {
   auto sinks = findRelevant(loop);
-
   DenseMap<unsigned, std::vector<IntegerRelation>> accesses;
 
   for (auto *sink : sinks) {
     auto maybeBound = getLoopBounds(sink);
     if (!maybeBound)
       continue;
-    auto bound = *maybeBound;
+    const auto &bound = *maybeBound;
 
     Operation *gep = getGEP(sink);
     if (!getAttr<ArrayBaseAttr>(gep) || !getAttr<ArrayOffsetAttr>(gep))
@@ -831,10 +853,23 @@ DynamicAPInt ComputeDeps::cachelinesAccessed(Operation *loop) {
     }
 
     // Compose this with the map.
+    if (numSymbols > 0) {
+      domain.convertVarKind(VarKind::Range, 0, numSymbols, VarKind::Symbol);
+      accessRel.convertVarKind(VarKind::Domain, 0, numSymbols, VarKind::Symbol);
+    }
     domain.compose(accessRel);
     domain.simplify();
     accesses[arrayId].push_back(domain);
   }
+
+  return accesses;
+}
+
+DynamicAPInt ComputeDeps::cachelinesAccessed(Operation *loop) {
+  if (auto it = domainSizeCache.find(loop); it != domainSizeCache.end())
+    return it->second;
+
+  auto accesses = getAccessRelationIn(loop);
 
   DynamicAPInt total(0);
   for (auto &[_, rels] : accesses) {
@@ -1031,7 +1066,7 @@ DepsTotal ComputeDeps::getDepsTotal(Operation *sink, const DependencyMap &depsIn
     // Each dimension is raised to a pair: (index, value), as said above.
     // Hence the `* 2`.
     // Also, note indices should be one smaller than dimension count.
-    unsigned loopDepth = loopVarIndex[indvar].size();
+    unsigned loopDepth = loopVarIndex.at(indvar).size();
     unsigned index = (srcDims - 1) + loopDepth * 2;
     indexMap[indvar] = index;
     commonDims = std::max(commonDims, index + 1);
@@ -1044,8 +1079,8 @@ DepsTotal ComputeDeps::getDepsTotal(Operation *sink, const DependencyMap &depsIn
   PresburgerSpace totalSpace = PresburgerSpace::getRelationSpace(srcDims, commonDims - srcDims);
   PresburgerRelation depsTotal = PresburgerRelation::getEmpty(totalSpace);
   for (const auto &[statement, relation] : depsIndividual) {
-    if (isTooFarAway(statement, sink))
-      continue;
+    // if (isTooFarAway(statement, sink))
+    //   continue;
 
     auto lexInd = lexIndex[statement];
     for (const auto &disjunct : relation.getAllDisjuncts()) {
@@ -1140,14 +1175,112 @@ DepsTotal ComputeDeps::getDepsTotal(Operation *sink, const DependencyMap &depsIn
   return { depsTotal, index2Statement };
 }
 
-void ComputeDeps::runOnSink(Operation *sink) {
+Operation *findLCA(Operation *a, Operation *b) {
+  if (!a || !b)
+    return nullptr;
+
+  llvm::SmallPtrSet<Operation *, 16> ancestors;
+
+  // Collect all ancestors of `a`.
+  for (Operation *cur = a; cur; cur = cur->getParentOp())
+    ancestors.insert(cur);
+
+  // Walk up from `b` until we find a match.
+  for (Operation *cur = b; cur; cur = cur->getParentOp()) {
+    if (ancestors.contains(cur))
+      return cur;
+  }
+
+  llvm_unreachable("Operations should always have an LCA");
+}
+
+std::pair<DynamicAPInt, DynamicAPInt> ComputeDeps::estimateDistance(Operation *sink, Operation *dep, const PresburgerRelation &domain, ArrayRef<IntVector> d) {
+  auto *lca = findLCA(sink, dep);
+  // Round to the nearest loop.
+  while (!isa<FuncOp>(lca) && !isa<AffineForOp>(lca))
+    lca = lca->getParentOp();
+  const static DynamicAPInt infinity(1ll << 62);
+  // The operations aren't in the same loop.
+  if (isa<FuncOp>(lca)) {
+    // TODO: return more accurate estimations.
+    return { DynamicAPInt(0), infinity };
+  }
+
+  // They are in the same loop. We consider only the deepest common loop.
+  std::vector<AffineForOp> loops;
+  for (auto *runner = lca; runner && !isa<FuncOp>(runner); runner = runner->getParentOp()) {
+    if (auto loop = dyn_cast<AffineForOp>(runner))
+      loops.push_back(loop);
+  }
+  // The loops are from inside to outside. We must reverse them.
+  std::reverse(loops.begin(), loops.end());
+
+  unsigned commonDepth = loops.size();
+  Fraction min = infinity, max;
+  for (const auto &disjunct : domain.getAllDisjuncts()) {
+    Simplex simplex(disjunct);
+    Fraction totalMin, totalMax;
+    std::vector<Fraction> l, r;
+    for (unsigned i = 0; i < commonDepth; i++) {
+      SmallVector<DynamicAPInt> one(disjunct.getNumVars() + 1);
+      one[i] = 1;
+      auto varlow = simplex.computeOptimum(Simplex::Direction::Down, one);
+      auto varhigh = simplex.computeOptimum(Simplex::Direction::Up, one);
+      if (varlow.isUnbounded() || varhigh.isUnbounded())
+        return { DynamicAPInt(0), infinity };
+
+      l.push_back(*varlow);
+      r.push_back(*varhigh);
+    }
+    disjunct.dump();
+    dumpVector(l);
+    dumpVector(r);
+    for (unsigned i = 0; i < commonDepth; i++) {
+      // Let the induction vector of `dep` be `d`, and that of `sink` be `s`.
+      // Then this `v` is the difference between `s[i]` and `d[i]`.
+      IntVector v(d[i]);
+      v[i] -= 1;
+      // We are subtracting `d` from `s`.
+      for (auto &x : v)
+        x *= -1;
+
+      // This is the coefficient for the lower/upper bounds.
+      auto loop = loops[i];
+      DynamicAPInt lower = accessLowerBound[loop], upper = accessUpperBound[loop];
+      llvm::errs() << "loop: [" << lower << ", " << upper << "]\n";
+
+      dumpVector(v);
+      auto last = (i + 1 == commonDepth);
+
+      Fraction totalMin;
+      for (unsigned k = 0; k < commonDepth; k++)
+        totalMin += v[k] * (v[k] < 0 ? r[k] : l[k]) * lower;
+      totalMin += (v.back() - last) * lower;
+
+      for (unsigned k = 0; k < commonDepth; k++)
+        totalMax += v[k] * (v[k] < 0 ? l[k] : r[k]) * upper;
+      totalMax += (v.back() + last) * upper;
+      llvm::errs() << "bound: [" << totalMin << ", " << totalMax << "]\n";
+    }
+
+    min = std::min(min, totalMin);
+    max = std::max(max, totalMax);
+  }
+  llvm::errs() << "sink = "; sink->dump();
+  llvm::errs() << "dep = "; dep->dump();
+  llvm::errs() << "distance between = " << min << ", " << max << "\n";
+  return { ceil(min), floor(max) };
+}
+
+MissCount ComputeDeps::runOnSink(Operation *sink) {
   static auto loadstores = findRelevant(getOperation());
   profiler.addSink(lexIndex[sink]);
   profiler.start(Profiler::DEPS);
   auto sinkDomain = getDomain(getGEP(sink));
   if (sinkDomain.isIntegerEmpty())
-    return;
+    return { DynamicAPInt(0), DynamicAPInt(0) };
 
+  MissCount cnt;
   unsigned srcDims = getDimension(getGEP(sink));
 
   // For every statement that sink depends on, record the `depend` relation,
@@ -1179,7 +1312,7 @@ void ComputeDeps::runOnSink(Operation *sink) {
     untouched = untouched.subtract(piece.domain);
 
   untouched = untouched.simplify().computeReprWithOnlyDivLocals();
-  compulsoryMisses += countIntPointsWithoutParameters(untouched);
+  cnt.compulsoryMisses += countIntPointsWithoutParameters(untouched);
 
   // Now, for each chamber of `deps`, we want to get the number of instances
   // between `sink(p)` and `deps(sink(p))`.
@@ -1233,6 +1366,19 @@ void ComputeDeps::runOnSink(Operation *sink) {
       assert(false);
     }
     Operation *dep = index2Statement[indices];
+    // if (locals == 0) {
+    //   // We can't deal with locals when we estimate distance.
+    //   auto [low, high] = estimateDistance(sink, dep, domain, d);
+    //   if (high < cacheSize) {
+    //     profiler.markAsPruned();
+    //     continue;
+    //   }
+    //   if (low > cacheSize) {
+    //     cnt.capacityMisses += countIntPointsWithoutParameters(domain);
+    //     profiler.markAsPruned();
+    //     continue;
+    //   }
+    // }
 
     // Now enumerate statements between `dep` and `sink`.
     // 
@@ -1459,10 +1605,11 @@ void ComputeDeps::runOnSink(Operation *sink) {
     } // for each u in between
 
     profiler.start(Profiler::COUNT);
-    countCapacityMisses(domain, instances);
+    cnt.capacityMisses += countCapacityMisses(domain, instances);
     profiler.end();
   } // for each piece of lexmax
   profiler.report();
+  return cnt;
 }
 
 [[gnu::unused]] DynamicAPInt enumeratePoints(IntegerRelation rel, QuasiPolynomial count) {
@@ -1529,54 +1676,74 @@ void ComputeDeps::runOnSink(Operation *sink) {
   return enumerateFeasiblePoints(rel, current, count);
 }
 
-[[gnu::unused]] DynamicAPInt cnfModelCount(const IntegerRelation &rel, const QuasiPolynomial &count) {
-  // Dump the domain.
-  char tmpname[] = "/tmp/falconXXXXXX";  // mkstemp requires XXXXXX
-  int fd = mkstemp64(tmpname);
-  if (fd == -1) {
-    perror("mkstemp");
-    abort();
+void ComputeDeps::recordAccessBounds(AffineForOp loop) {
+  // Collect loads and stores inside the loop.
+  auto sinks = findRelevant(loop);
+  if (!sinks.size())
+    return;
+
+  unsigned loopDepth = 1 + getLoopDepth(loop);
+
+  Operation *sink = sinks.front();
+  auto maybeBound = getLoopBounds(sink);
+  if (!maybeBound)
+    return;
+  const auto &bound = *maybeBound;
+  Operation *gep = getGEP(sink);
+  if (!getAttr<ArrayBaseAttr>(gep) || !getAttr<ArrayOffsetAttr>(gep))
+    return;
+  IntegerRelation domain(PresburgerSpace::getSetSpace(loopDepth));
+  // Obtain parameter space for outer loops.
+  addBounds(domain, bound, loopDepth, 0, loopDepth);
+
+  auto accesses = getAccessRelationIn(loop, loopDepth);
+
+  DynamicAPInt lowerBound, upperBound;
+  for (auto &[_, rels] : accesses) {
+    assert(!rels.empty());
+    PresburgerRelation rel(rels[0]);
+    for (unsigned i = 1; i < rels.size(); i++)
+      rel.unionInPlace(rels[i]);
+
+    // Now convert the first `loopDepth` domain variables to symbols.
+    // We want to find upper/lower bounds for this symbolic relation.
+    auto countResult = countIntegerPoints(rel.computeReprWithOnlyDivLocals().simplify());
+    DynamicAPInt fullLb(1ll << 62), fullRb;
+    for (const auto &[region, count] : countResult) {
+      for (const auto &disjunct : region.getAllDisjuncts()) {
+        // Obtain the lower and upper bound for each variable, given loop domain.
+        llvm::SmallVector<std::pair<DynamicAPInt, DynamicAPInt>> loopVarBound;
+        auto intersect = disjunct.intersect(domain);
+        if (intersect.isIntegerEmpty())
+          continue;
+
+        Simplex simplex(intersect);
+        for (unsigned i = 0; i < loopDepth; i++) {
+          llvm::SmallVector<DynamicAPInt> v(loopDepth + 1);
+          v[i] = 1;
+          auto lb = simplex.computeOptimum(Simplex::Direction::Down, v);
+          auto rb = simplex.computeOptimum(Simplex::Direction::Up, v);
+          if (lb.isUnbounded() || rb.isUnbounded())
+            return;
+          loopVarBound.emplace_back(ceil(*lb), floor(*rb));
+        }
+
+        // Find the lower and upper bound of the count, given bounds of variables.
+        fullLb = std::min(fullLb, count.computeCertifiedLowerBound(loopVarBound));
+        fullRb = std::max(fullRb, count.computeCertifiedUpperBound(loopVarBound));
+      }
+    }
+
+    lowerBound += fullLb;
+    upperBound += fullRb;
   }
-  FILE* tmp = fdopen(fd, "w+");
-  std::string str;
-  llvm::raw_string_ostream ss(str);
-  rel.print(ss);
-  fprintf(tmp, "%s", str.c_str());
 
-  // For every variable, calculate the bound.
-  for (unsigned i = 0; i < rel.getNumVars(); i++) {
-    auto lb = rel.getConstantBound(BoundType::LB, i);
-    auto ub = rel.getConstantBound(BoundType::UB, i);
-    if (!lb || !ub)
-      assert(false && "the region should be bounded!");
-
-    // Output to the Python adaptor.
-    DynamicAPInt lbb = *lb;
-    fprintf(tmp, "%ld %ld\n", (int64_t) *lb, (int64_t) *ub);
-  }
-
-  // Dump the count.
-  str.clear();
-  count.print(ss);
-  fprintf(tmp, "%s", str.c_str());
-  fflush(tmp);
-
-  int pid = fork();
-  if (pid == 0) {
-    char *argv[] = {
-      const_cast<char*>("/usr/bin/python3"),
-      getenv("FALCON_PYTHON_ADAPTOR"),
-      tmpname, nullptr
-    };
-    execv("/usr/bin/python3", argv);
-    exit(0);
-  }
-  waitpid(pid, nullptr, 0);
-  fclose(tmp);
-  return DynamicAPInt(0);
+  accessLowerBound[loop] = lowerBound;
+  accessUpperBound[loop] = upperBound;
 }
 
-void ComputeDeps::countCapacityMisses(const PresburgerRelation &domain, DenseMap<unsigned, std::vector<PresburgerRelation>> &instances) {
+DynamicAPInt ComputeDeps::countCapacityMisses(const PresburgerRelation &domain, DenseMap<unsigned, std::vector<PresburgerRelation>> &instances) {
+  DynamicAPInt capacityMisses;
   auto srcDims = domain.getNumRangeVars();
   unsigned maxdim = 0;
   for (const auto &[_, reuses] : instances)
@@ -1684,7 +1851,7 @@ void ComputeDeps::countCapacityMisses(const PresburgerRelation &domain, DenseMap
       }
     }
     if (!barvinokable) {
-      llvm::errs() << "enumeration triggered\n";
+      // llvm::errs() << "enumeration triggered\n";
       auto divonly = intersect.simplify().computeReprWithOnlyDivLocals();
       auto difference = (count - QuasiPolynomial(count.getNumInputs(), cacheSize)).collectTerms();
       for (const auto &disjunct : divonly.getAllDisjuncts()) {
@@ -1718,9 +1885,14 @@ void ComputeDeps::countCapacityMisses(const PresburgerRelation &domain, DenseMap
     }
     capacityMisses += misses;
   }
+  return capacityMisses;
 }
 
 void ComputeDeps::runOnOperation() {
+  int cacheInput;
+  scanf("%d%d", &cacheInput, &cachelineSize);
+  cacheSize = cacheInput;
+
   llvm::Timer timer;
   timer.startTimer();
   auto *module = getOperation();
@@ -1728,14 +1900,34 @@ void ComputeDeps::runOnOperation() {
   unsigned nextIndex = 1;
   markLoopInductionVars(module, {}, nextIndex);
 
-  // For testing purposes.
-  int cacheInput;
-  scanf("%d%d", &cacheInput, &cachelineSize);
-  cacheSize = cacheInput;
+  getOperation()->walk([&](Operation *op) {
+    if (auto loop = dyn_cast<AffineForOp>(op))
+      recordAccessBounds(loop);
+  });
 
   auto getelems = findRelevant(module);
-  for (auto *sink : getelems)
-    runOnSink(sink);
+  DynamicAPInt capacityMisses, compulsoryMisses;
+
+  // llvm::StdThreadPool pool;
+  // std::vector<std::shared_future<MissCount>> futures;
+
+  // for (auto *sink : getelems) {
+  //   futures.push_back(pool.async([=]() {
+  //     return runOnSink(sink);
+  //   }));
+  // }
+
+  // for (auto &f : futures) {
+  //   const auto &result = f.get();
+  //   capacityMisses += result.capacityMisses;
+  //   compulsoryMisses += result.compulsoryMisses;
+  // }
+
+  for (auto *x : getelems) {
+    auto result = runOnSink(x);
+    capacityMisses += result.capacityMisses;
+    compulsoryMisses += result.compulsoryMisses;
+  }
 
   timer.stopTimer();
   double time = timer.getTotalTime().getWallTime();

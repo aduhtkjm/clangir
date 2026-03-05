@@ -125,6 +125,7 @@ IntegerRelation IntegerRelation::intersect(IntegerRelation other) const {
   IntegerRelation result = *this;
   result.mergeLocalVars(other);
   result.append(other);
+  result.removeTrivialRedundancy();
   return result;
 }
 

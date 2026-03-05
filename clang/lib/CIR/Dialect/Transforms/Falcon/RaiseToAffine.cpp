@@ -134,13 +134,12 @@ void RaiseToAffine::raise(ForOp forOp) {
 
   Value ivAddr = addr;
 
-  // Check the increased variable is indeed the induction variable, by looking at the condition.
+  // Check that the increased variable is indeed the induction variable, by looking at the condition.
   auto &condBlock = forOp.getCond().getBlocks().front();
   auto term = cast<ConditionOp>(condBlock.getOperations().back());
   auto cmp = dyn_cast<CmpOp>(term.getCondition().getDefiningOp());
 
-  // For now, we only deal with the less-than situation.
-  if (!cmp || (cmp.getKind() != CmpOpKind::lt && cmp.getKind() != CmpOpKind::le))
+  if (!cmp || (cmp.getKind() == CmpOpKind::eq && cmp.getKind() == CmpOpKind::ne))
     return;
 
   auto lhs = dyn_cast<LoadOp>(cmp.getLhs().getDefiningOp());
@@ -173,7 +172,7 @@ void RaiseToAffine::raise(ForOp forOp) {
   OpBuilder builder(forOp);
   mlir::MLIRContext *ctx = forOp->getContext();
 
-  auto createCast = [&](mlir::Value value, bool addOne) {
+  auto createCast = [&](mlir::Value value, int add) {
     if (auto *def = value.getDefiningOp()) {
       if (def->getParentOp() == forOp)
         def->moveBefore(forOp);
@@ -181,16 +180,28 @@ void RaiseToAffine::raise(ForOp forOp) {
     } else {
       builder.setInsertionPointToStart(value.getParentBlock());
     }
-    if (addOne) {
-      auto one = builder.create<ConstantOp>(value.getLoc(), IntAttr::get(IntType::get(ctx, 32, true), 1));
+    if (add != 0) {
+      auto one = builder.create<ConstantOp>(value.getLoc(), IntAttr::get(IntType::get(ctx, 32, true), add));
       value = builder.create<BinOp>(value.getLoc(), BinOpKind::Add, value, one);
     }
     auto cast = builder.create<IndexCastOp>(value.getLoc(), value);
     return cast;
   };
 
-  auto upperBound = createCast(ub, cmp.getKind() == CmpOpKind::le);
-  auto lowerBound = createCast(lb, false);
+  IndexCastOp upperBound, lowerBound;
+  bool reversed = false;
+  if (cmp.getKind() == CmpOpKind::le || cmp.getKind() == CmpOpKind::lt) {
+    upperBound = createCast(ub, cmp.getKind() == CmpOpKind::le ? 1 : 0);
+    lowerBound = createCast(lb, false);
+  } else {
+    // For `>=` it's (x = lb; x >= ub; x--).
+    // Then after reversal, we need (x = ub; x < lb + 1; x++).
+    // For `>`, similarly we have (x = ub + 1; x < lb + 1; x++).
+    upperBound = createCast(lb, 1);
+    lowerBound = createCast(ub, cmp.getKind() == CmpOpKind::gt ? 1 : 0);
+    step = -step;
+    reversed = true;
+  }
 
   auto idmap = AffineMap::get(0, 1, getAffineSymbolExpr(0, ctx));
   builder.setInsertionPoint(forOp);
@@ -214,7 +225,15 @@ void RaiseToAffine::raise(ForOp forOp) {
   });
   if (!loads.empty()) {
     builder.setInsertionPointToStart(&affineBlock);
-    Value cast = builder.create<FromIndexOp>(affineFor->getLoc(), loads.front().getResult().getType(), affineFor.getInductionVar());
+    auto loc = affineFor->getLoc();
+    Value cast = builder.create<FromIndexOp>(loc, loads.front().getResult().getType(), affineFor.getInductionVar());
+    // Now the `i` is reversed, so it should be replaced with upperBound + ub - i - 1.
+    if (reversed) {
+      auto add = builder.create<BinOp>(loc, BinOpKind::Add, upperBound.getSrc(), ub);
+      auto sub = builder.create<BinOp>(loc, BinOpKind::Sub, add, cast);
+      auto one = builder.create<ConstantOp>(loc, IntAttr::get(IntType::get(ctx, 32, true), 1));
+      cast = builder.create<BinOp>(loc, BinOpKind::Sub, sub, one);
+    }
     for (auto op : loads) {
       op.replaceAllUsesWith(cast);
       op.erase();

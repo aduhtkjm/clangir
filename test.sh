@@ -12,6 +12,8 @@ while [[ $# -gt 0 ]]; do
   case "$1" in
     -c|--cmake)
       run_cmake=1; shift;;
+    -cn|--cmake-no-assert)
+      run_cmake_noassert=1; shift;;
     -C|--cache-size)
       if [[ -z $2 ]]; then
         die "expected cache size after $1"
@@ -126,6 +128,19 @@ fi
 # Build the project.
 if [[ -n $run_cmake ]]; then
 cmake -G Ninja -S llvm -B build -DCMAKE_BUILD_TYPE=Release -DLLVM_ENABLE_PROJECTS="clang;mlir;compiler-rt" -DCLANG_ENABLE_CIR=ON -DLLVM_BUILD_TARGETS="X86" -DLLVM_ENABLE_ASSERTIONS=ON -DLLVM_USE_LINKER=lld -DCMAKE_C_COMPILER="/usr/local/bin/clang" -DCMAKE_CXX_COMPILER="/usr/local/bin/clang++"
+fi
+if [[ -n $run_cmake_noassert ]]; then
+  cmake -G Ninja -S llvm -B build-no-asserts \
+    -DCMAKE_BUILD_TYPE=Release \
+    -DLLVM_ENABLE_PROJECTS="clang;mlir" \
+    -DCLANG_ENABLE_CIR=ON \
+    -DLLVM_BUILD_TARGETS="X86" \
+    -DLLVM_ENABLE_ASSERTIONS=OFF \
+    -DLLVM_USE_LINKER=lld \
+    -DCMAKE_C_COMPILER="/usr/local/bin/clang" \
+    -DCMAKE_CXX_COMPILER="/usr/local/bin/clang++"
+  ninja -C build-no-asserts -j $(nproc)
+  exit 0
 fi
 
 ninja -C build -j $(nproc)

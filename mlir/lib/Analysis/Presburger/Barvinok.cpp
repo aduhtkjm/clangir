@@ -485,8 +485,8 @@ static IntMatrix getAffineHull(const PolyhedronH &poly) {
     auto maybeMaximum = simplex.computeOptimum(Simplex::Direction::Up, poly.getInequality(i));
     if (!maybeMinimum.isBounded() || !maybeMaximum.isBounded())
       continue;
-    Fraction minimum = maybeMaximum.getBoundedOptimum();
-    Fraction maximum = maybeMaximum.getBoundedOptimum();
+    const Fraction &minimum = maybeMaximum.getBoundedOptimum();
+    const Fraction &maximum = maybeMaximum.getBoundedOptimum();
     if (minimum == maximum && minimum == 0) {
       mat.insertRow(mat.getNumRows());
       auto row = mat.getRow(mat.getNumRows() - 1);
@@ -514,8 +514,8 @@ std::pair<IntegerRelation, PolyhedronH> mlir::presburger::detail::projectToFullD
       newpoly.addInequality(poly.getInequality(i));
       continue;
     }
-    Fraction minimum = maybeMaximum.getBoundedOptimum();
-    Fraction maximum = maybeMaximum.getBoundedOptimum();
+    const Fraction &minimum = maybeMaximum.getBoundedOptimum();
+    const Fraction &maximum = maybeMaximum.getBoundedOptimum();
     if (minimum == maximum && minimum == 0)
       newpoly.addEquality(poly.getInequality(i));
     else
@@ -750,7 +750,7 @@ mlir::presburger::detail::solveParametricEquations(FracMatrix equations) {
 }
 
 // Triangulate with the DeLaunay's method.
-std::vector<ConeV> triangulate(const ConeV &dual) {
+static std::vector<ConeV> triangulate(const ConeV &dual) {
   std::vector<ConeV> triangles;
   unsigned numRays = dual.getNumRows();
   unsigned dim = dual.getNumColumns();
@@ -1246,7 +1246,7 @@ QuasiPolynomial mlir::presburger::detail::getCoefficientInRationalFunction(
 /// t^num / \prod_j (1 - t^dens[j]).
 /// v represents the affine functions whose floors are multiplied by the
 /// generators, and ds represents the list of generators.
-std::pair<QuasiPolynomial, std::vector<Fraction>>
+static std::pair<QuasiPolynomial, std::vector<Fraction>>
 substituteMuInTerm(unsigned numParams, const ParamPoint &v,
                    const std::vector<Point> &ds, const Point &mu) {
   unsigned numDims = mu.size();
@@ -1298,7 +1298,7 @@ substituteMuInTerm(unsigned numParams, const ParamPoint &v,
 /// Here, sign = ± 1,
 /// num is a QuasiPolynomial, and
 /// each dens[j] is a Fraction.
-void normalizeDenominatorExponents(int &sign, QuasiPolynomial &num,
+static void normalizeDenominatorExponents(int &sign, QuasiPolynomial &num,
                                    std::vector<Fraction> &dens) {
   // We track the number of exponents that are negative in the
   // denominator, and convert them to their absolute values.
@@ -1326,7 +1326,7 @@ void normalizeDenominatorExponents(int &sign, QuasiPolynomial &num,
 
 /// Compute the binomial coefficients nCi for 0 ≤ i ≤ r,
 /// where n is a QuasiPolynomial.
-std::vector<QuasiPolynomial> getBinomialCoefficients(const QuasiPolynomial &n,
+static std::vector<QuasiPolynomial> getBinomialCoefficients(const QuasiPolynomial &n,
                                                      unsigned r) {
   unsigned numParams = n.getNumInputs();
   std::vector<QuasiPolynomial> coefficients;
@@ -1343,7 +1343,7 @@ std::vector<QuasiPolynomial> getBinomialCoefficients(const QuasiPolynomial &n,
 
 /// Compute the binomial coefficients nCi for 0 ≤ i ≤ r,
 /// where n is a QuasiPolynomial.
-std::vector<Fraction> getBinomialCoefficients(const Fraction &n,
+static std::vector<Fraction> getBinomialCoefficients(const Fraction &n,
                                               const Fraction &r) {
   std::vector<Fraction> coefficients;
   coefficients.reserve((int64_t)floor(r));
@@ -1520,7 +1520,6 @@ void obtainRegions(const PresburgerRelation &rel, const PolyhedronH &current, Sm
     // By "active region", we must also take the parameter space
     // constraint into consideration.
     auto [c, projected] = projectToFullDimension(current);
-    assert(projected.isFullDim());
     PresburgerRelation constraint(c);
 
     // A singleton set.
@@ -1530,10 +1529,6 @@ void obtainRegions(const PresburgerRelation &rel, const PolyhedronH &current, Sm
       outRecords.push_back({ active, constraint, one });
       return;
     }
-    // We should guarantee that the number of integer points 
-    // #projected = #current. Since current is non-empty, neither should
-    // projected be.
-    assert(!projected.isIntegerEmpty());
     auto gfs = computePolytopeGeneratingFunction(projected);
     for (const auto &[region_, gf] : gfs) {
       auto region = region_.intersect(constraint);
@@ -1554,7 +1549,7 @@ void obtainRegions(const PresburgerRelation &rel, const PolyhedronH &current, Sm
 
   // Case 2. disjunct[next] is included.
   PolyhedronH nextIntersection = current.intersect(rel.getDisjunct(next));
-  if (!nextIntersection.isIntegerEmpty()) {
+  if (!nextIntersection.isEmpty()) {
     active.push_back(next);
     obtainRegions(rel, nextIntersection, active, next + 1, outRecords);
     active.pop_back();
@@ -1564,6 +1559,9 @@ void obtainRegions(const PresburgerRelation &rel, const PolyhedronH &current, Sm
 struct Chamber {
   PresburgerRelation region;
   llvm::SmallBitVector membership;
+
+  Chamber(const PresburgerRelation &region, const llvm::SmallBitVector &membership):
+    region(region), membership(membership) {}
 };
 
 } // namespace
@@ -1573,24 +1571,22 @@ mlir::presburger::detail::countIntegerPoints(const PresburgerRelation &rel) {
   std::vector<Region> records;
   SmallVector<unsigned> active;
   auto universe = IntegerRelation::getUniverse(rel.getSpace());
-  // llvm::Timer timer;
-  // timer.startTimer();
+  llvm::Timer timer;
+  timer.startTimer();
   obtainRegions(rel, universe, active, 0, records);
-  // timer.stopTimer();
-  // llvm::errs() << "disjunct count = " << rel.getNumDisjuncts() << "\n";
-  // llvm::errs() << "record count = " << records.size() << "\n";
-  // llvm::errs() << "time = " << timer.getTotalTime().getWallTime() << "\n";
+  timer.stopTimer();
+  llvm::errs() << "disjunct count = " << rel.getNumDisjuncts() << "\n";
+  llvm::errs() << "record count = " << records.size() << "\n";
+  llvm::errs() << "time = " << timer.getTotalTime().getWallTime() << "\n";
   
-  // timer.clear();
-  // timer.startTimer();
+  timer.clear();
+  timer.startTimer();
   unsigned numParams = rel.getNumSymbolVars();
   auto paramSpace = PresburgerSpace::getSetSpace(numParams);
   auto paramUniverse = PresburgerRelation::getUniverse(paramSpace);
   std::vector<Chamber> refinement { { paramUniverse, llvm::SmallBitVector(records.size(), false) } };
 
   // For each record region, split current refinement.
-  // TODO: Remark the 200% speedup of `membership`,
-  // and an additional 300% speedup of `simplify`. 
   for (unsigned i = 0; i < records.size(); ++i) {
     const Region &rec = records[i];
     std::vector<Chamber> nextRef;
@@ -1601,27 +1597,26 @@ mlir::presburger::detail::countIntegerPoints(const PresburgerRelation &rel) {
       // will contribute in the chamber. 
       PresburgerRelation inside = ch.region.intersect(rec.region);
       if (!inside.isIntegerEmpty()) {
-        Chamber chamber { inside.simplify(), ch.membership };
-        chamber.membership.set(i);
-        nextRef.push_back(std::move(chamber));
+        nextRef.emplace_back(inside, ch.membership);
+        nextRef.back().membership.set(i);
       }
 
       // outside = chamber \ rec.region
       PresburgerRelation outside = ch.region.subtract(rec.region);
-      if (!outside.isIntegerEmpty()) {
-        Chamber newCh { outside.simplify(), ch.membership };
-        nextRef.push_back(std::move(newCh));
-      }
+      if (!outside.isIntegerEmpty())
+        nextRef.emplace_back(outside, ch.membership);
     }
 
     refinement.swap(nextRef);
   }
-  // timer.stopTimer();
-  // llvm::errs() << "refinement count = " << refinement.size() << "\n";
-  // llvm::errs() << "time = " << timer.getTotalTime().getWallTime() << "\n";
+  timer.stopTimer();
+  llvm::errs() << "refinement count = " << refinement.size() << "\n";
+  llvm::errs() << "time = " << timer.getTotalTime().getWallTime() << "\n";
 
   // Now refinement is a list of pairwise-disjoint chambers.
   // For each refinement chamber, collect contributions and sum quasi-polynomials.
+  timer.clear();
+  timer.startTimer();
   std::vector<std::pair<PresburgerRelation, QuasiPolynomial>> result;
   for (const Chamber &chamber : refinement) {
     QuasiPolynomial q(numParams, 0);
@@ -1638,6 +1633,8 @@ mlir::presburger::detail::countIntegerPoints(const PresburgerRelation &rel) {
 
     result.emplace_back(chamber.region.simplify(), q.collectTerms());
   }
-
+  llvm::errs() << "result aggregation time = " << refinement.size() << "\n";
+  llvm::errs() << "time = " << timer.getTotalTime().getWallTime() << "\n";
+  timer.stopTimer();
   return result;
 }

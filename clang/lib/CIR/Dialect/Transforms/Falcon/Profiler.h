@@ -35,6 +35,7 @@ private:
     std::vector<double> countTimes;
 
     int lexIndex;
+    int pruned = 0;
   };
 
   std::vector<SinkProfile> sinks;
@@ -55,6 +56,10 @@ public:
       end();
     kind = k;
     timer.startTimer();
+  }
+
+  void markAsPruned() {
+    current().pruned++;
   }
 
   void end() {
@@ -86,7 +91,7 @@ public:
     llvm::dbgs() << "Comp. miss time: " << formatTime(record.compMissTime) << "\n\n";
 
     if (record.distTimes.size() > 0) {
-      llvm::dbgs() << "Pieces: " << record.distTimes.size() << "\n";
+      llvm::dbgs() << "Pieces not pruned: " << record.distTimes.size() << " (pruned: " << record.pruned << ")\n";
       auto totalDist = std::accumulate(record.distTimes.begin(), record.distTimes.end(), 0.0);
       auto maxDist = std::max_element(record.distTimes.begin(), record.distTimes.end());
       llvm::dbgs() << "Total dist time: " << formatTime(totalDist) << "\n";

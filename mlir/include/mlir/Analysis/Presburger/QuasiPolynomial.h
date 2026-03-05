@@ -77,6 +77,9 @@ public:
   // returns the simplified polynomial.
   QuasiPolynomial partialEvaluate(unsigned index, ArrayRef<DynamicAPInt> x) const;
 
+  DynamicAPInt computeCertifiedLowerBound(llvm::ArrayRef<std::pair<DynamicAPInt, DynamicAPInt>> varBounds) const;
+  DynamicAPInt computeCertifiedUpperBound(llvm::ArrayRef<std::pair<DynamicAPInt, DynamicAPInt>> varBounds) const;
+
   void print(llvm::raw_ostream &os) const;
   void dump() const { print(llvm::errs()); }
 

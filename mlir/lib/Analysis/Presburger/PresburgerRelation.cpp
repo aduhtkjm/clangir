@@ -605,9 +605,7 @@ static PresburgerRelation getSetDifference(IntegerRelation b,
   }
 
   // Try to simplify the results.
-  // result = result.simplify();
-
-  return result;
+  return result.simplify();
 }
 
 /// Return the complement of this set.

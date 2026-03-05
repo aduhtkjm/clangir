@@ -1,31 +1,4675 @@
-testing: /home/aduhtkjm/llvm/polybench/linear-algebra/solvers/cholesky/cholesky.c
-testing: /home/aduhtkjm/llvm/polybench/linear-algebra/solvers/gramschmidt/gramschmidt.c
-testing: /home/aduhtkjm/llvm/polybench/linear-algebra/solvers/trisolv/trisolv.c
-testing: /home/aduhtkjm/llvm/polybench/linear-algebra/solvers/durbin/durbin.c
-testing: /home/aduhtkjm/llvm/polybench/linear-algebra/solvers/ludcmp/ludcmp.c
-testing: /home/aduhtkjm/llvm/polybench/linear-algebra/solvers/lu/lu.c
-testing: /home/aduhtkjm/llvm/polybench/linear-algebra/kernels/2mm/2mm.c
-testing: /home/aduhtkjm/llvm/polybench/linear-algebra/kernels/doitgen/doitgen.c
-testing: /home/aduhtkjm/llvm/polybench/linear-algebra/kernels/atax/atax.c
-testing: /home/aduhtkjm/llvm/polybench/linear-algebra/kernels/mvt/mvt.c
-testing: /home/aduhtkjm/llvm/polybench/linear-algebra/kernels/3mm/3mm.c
-testing: /home/aduhtkjm/llvm/polybench/linear-algebra/kernels/bicg/bicg.c
-testing: /home/aduhtkjm/llvm/polybench/linear-algebra/blas/trmm/trmm.c
-testing: /home/aduhtkjm/llvm/polybench/linear-algebra/blas/gemm/gemm.c
-testing: /home/aduhtkjm/llvm/polybench/linear-algebra/blas/gemver/gemver.c
-testing: /home/aduhtkjm/llvm/polybench/linear-algebra/blas/gesummv/gesummv.c
-testing: /home/aduhtkjm/llvm/polybench/linear-algebra/blas/symm/symm.c
-testing: /home/aduhtkjm/llvm/polybench/linear-algebra/blas/syrk/syrk.c
-testing: /home/aduhtkjm/llvm/polybench/linear-algebra/blas/syr2k/syr2k.c
-testing: /home/aduhtkjm/llvm/polybench/medley/floyd-warshall/floyd-warshall.c
-testing: /home/aduhtkjm/llvm/polybench/medley/deriche/deriche.c
-testing: /home/aduhtkjm/llvm/polybench/medley/nussinov/nussinov.c <data-dependent>
-testing: /home/aduhtkjm/llvm/polybench/stencils/seidel-2d/seidel-2d.c
-testing: /home/aduhtkjm/llvm/polybench/stencils/jacobi-2d/jacobi-2d.c
-testing: /home/aduhtkjm/llvm/polybench/stencils/adi/adi.c
-testing: /home/aduhtkjm/llvm/polybench/stencils/fdtd-2d/fdtd-2d.c <broken>
-testing: /home/aduhtkjm/llvm/polybench/stencils/jacobi-1d/jacobi-1d.c
-testing: /home/aduhtkjm/llvm/polybench/stencils/heat-3d/heat-3d.c <good, but slow>
-testing: /home/aduhtkjm/llvm/polybench/datamining/covariance/covariance.c
-testing: /home/aduhtkjm/llvm/polybench/datamining/correlation/correlation.c
+/home/aduhtkjm/llvm/polybench/linear-algebra/solvers/cholesky/cholesky.c
+===== LEX INDEX 4 START =====
+Deps time: 4.057 ms
+Comp. miss time: 124.693 us
 
+Pieces not pruned: 8 (pruned: 0)
+Total dist time: 41.661 ms
+Average dist time: 5.208 ms
+Maximum dist time: 9.073 ms
+
+Total count time: 37.111 ms
+Average count time: 4.639 ms
+Maximum count time: 10.372 ms
+===== LEX INDEX 4 END =====
+===== LEX INDEX 5 START =====
+Deps time: 6.364 ms
+Comp. miss time: 116.110 us
+
+Pieces not pruned: 8 (pruned: 0)
+Total dist time: 101.528 ms
+Average dist time: 12.691 ms
+Maximum dist time: 21.343 ms
+
+Total count time: 56.073 s
+Average count time: 7.009 s
+Maximum count time: 50.348 s
+===== LEX INDEX 5 END =====
+===== LEX INDEX 6 START =====
+Deps time: 1.093 ms
+Comp. miss time: 366.926 us
+
+Pieces not pruned: 4 (pruned: 0)
+Total dist time: 13.875 ms
+Average dist time: 3.469 ms
+Maximum dist time: 3.997 ms
+
+Total count time: 2.352 ms
+Average count time: 587.940 us
+Maximum count time: 706.434 us
+===== LEX INDEX 6 END =====
+===== LEX INDEX 8 START =====
+Deps time: 1.081 ms
+Comp. miss time: 34.094 us
+
+Pieces not pruned: 4 (pruned: 0)
+Total dist time: 21.658 ms
+Average dist time: 5.415 ms
+Maximum dist time: 9.589 ms
+
+Total count time: 5.208 s
+Average count time: 1.302 s
+Maximum count time: 5.186 s
+===== LEX INDEX 8 END =====
+===== LEX INDEX 9 START =====
+Deps time: 810.146 us
+Comp. miss time: 87.261 us
+
+Pieces not pruned: 4 (pruned: 0)
+Total dist time: 8.063 ms
+Average dist time: 2.016 ms
+Maximum dist time: 2.069 ms
+
+Total count time: 521.660 us
+Average count time: 130.415 us
+Maximum count time: 152.588 us
+===== LEX INDEX 9 END =====
+===== LEX INDEX 12 START =====
+Deps time: 1.901 ms
+Comp. miss time: 45.061 us
+
+Pieces not pruned: 6 (pruned: 0)
+Total dist time: 16.524 ms
+Average dist time: 2.754 ms
+Maximum dist time: 4.309 ms
+
+Total count time: 14.308 ms
+Average count time: 2.385 ms
+Maximum count time: 5.627 ms
+===== LEX INDEX 12 END =====
+===== LEX INDEX 13 START =====
+Deps time: 2.750 ms
+Comp. miss time: 55.552 us
+
+Pieces not pruned: 6 (pruned: 0)
+Total dist time: 7.671 ms
+Average dist time: 1.278 ms
+Maximum dist time: 1.502 ms
+
+Total count time: 38.624 us
+Average count time: 6.437 us
+Maximum count time: 7.153 us
+===== LEX INDEX 13 END =====
+===== LEX INDEX 14 START =====
+Deps time: 514.269 us
+Comp. miss time: 105.619 us
+
+Pieces not pruned: 2 (pruned: 0)
+Total dist time: 3.787 ms
+Average dist time: 1.894 ms
+Maximum dist time: 2.037 ms
+
+Total count time: 327.110 us
+Average count time: 163.555 us
+Maximum count time: 171.423 us
+===== LEX INDEX 14 END =====
+===== LEX INDEX 16 START =====
+Deps time: 330.448 us
+Comp. miss time: 15.497 us
+
+Pieces not pruned: 2 (pruned: 0)
+Total dist time: 1.784 ms
+Average dist time: 892.162 us
+Maximum dist time: 951.290 us
+
+Total count time: 10.490 us
+Average count time: 5.245 us
+Maximum count time: 5.484 us
+===== LEX INDEX 16 END =====
+===== LEX INDEX 7 START =====
+Deps time: 2.387 ms
+Comp. miss time: 80.824 us
+
+Pieces not pruned: 8 (pruned: 0)
+Total dist time: 25.500 ms
+Average dist time: 3.188 ms
+Maximum dist time: 3.671 ms
+
+Total count time: 66.757 us
+Average count time: 8.345 us
+Maximum count time: 10.014 us
+===== LEX INDEX 7 END =====
+===== LEX INDEX 10 START =====
+Deps time: 1.484 ms
+Comp. miss time: 40.054 us
+
+Pieces not pruned: 7 (pruned: 0)
+Total dist time: 9.225 ms
+Average dist time: 1.318 ms
+Maximum dist time: 1.965 ms
+
+Total count time: 44.346 us
+Average count time: 6.335 us
+Maximum count time: 7.868 us
+===== LEX INDEX 10 END =====
+===== LEX INDEX 15 START =====
+Deps time: 741.482 us
+Comp. miss time: 17.643 us
+
+Pieces not pruned: 4 (pruned: 0)
+Total dist time: 6.401 ms
+Average dist time: 1.600 ms
+Maximum dist time: 1.652 ms
+
+Total count time: 26.941 us
+Average count time: 6.735 us
+Maximum count time: 7.629 us
+===== LEX INDEX 15 END =====
+===== LEX INDEX 17 START =====
+Deps time: 464.439 us
+Comp. miss time: 6.914 us
+
+Pieces not pruned: 3 (pruned: 0)
+Total dist time: 1.847 ms
+Average dist time: 615.597 us
+Maximum dist time: 946.760 us
+
+Total count time: 17.166 us
+Average count time: 5.722 us
+Maximum count time: 6.676 us
+===== LEX INDEX 17 END =====
+total compulsory misses = 2001000
+total capacity misses = 1154768647
+total misses = 1156769647
+time elapsed: 61.638 s
+/home/aduhtkjm/llvm/polybench/linear-algebra/solvers/gramschmidt/gramschmidt.c
+===== LEX INDEX 4 START =====
+Deps time: 1.187 ms
+Comp. miss time: 101.089 us
+
+Pieces not pruned: 4 (pruned: 0)
+Total dist time: 11.330 ms
+Average dist time: 2.833 ms
+Maximum dist time: 5.116 ms
+
+Total count time: 11.002 ms
+Average count time: 2.751 ms
+Maximum count time: 6.434 ms
+===== LEX INDEX 4 END =====
+===== LEX INDEX 5 START =====
+Deps time: 1.268 ms
+Comp. miss time: 20.981 us
+
+Pieces not pruned: 4 (pruned: 0)
+Total dist time: 3.614 ms
+Average dist time: 903.606 us
+Maximum dist time: 1.035 ms
+
+Total count time: 25.272 us
+Average count time: 6.318 us
+Maximum count time: 6.676 us
+===== LEX INDEX 5 END =====
+===== LEX INDEX 11 START =====
+Deps time: 2.211 ms
+Comp. miss time: 22.411 us
+
+Pieces not pruned: 4 (pruned: 0)
+Total dist time: 7.051 ms
+Average dist time: 1.763 ms
+Maximum dist time: 1.833 ms
+
+Total count time: 4.338 ms
+Average count time: 1.085 ms
+Maximum count time: 1.414 ms
+===== LEX INDEX 11 END =====
+===== LEX INDEX 12 START =====
+Deps time: 355.005 us
+Comp. miss time: 19.550 us
+
+Pieces not pruned: 4 (pruned: 0)
+Total dist time: 4.570 ms
+Average dist time: 1.142 ms
+Maximum dist time: 1.395 ms
+
+Total count time: 936.508 us
+Average count time: 234.127 us
+Maximum count time: 383.377 us
+===== LEX INDEX 12 END =====
+===== LEX INDEX 17 START =====
+Deps time: 1.457 ms
+Comp. miss time: 83.923 us
+
+Pieces not pruned: 6 (pruned: 0)
+Total dist time: 33.546 ms
+Average dist time: 5.591 ms
+Maximum dist time: 7.321 ms
+
+Total count time: 26.149 ms
+Average count time: 4.358 ms
+Maximum count time: 6.769 ms
+===== LEX INDEX 17 END =====
+===== LEX INDEX 18 START =====
+Deps time: 1.675 ms
+Comp. miss time: 363.827 us
+
+Pieces not pruned: 4 (pruned: 0)
+Total dist time: 64.387 ms
+Average dist time: 16.097 ms
+Maximum dist time: 19.435 ms
+
+Total count time: 1.192 s
+Average count time: 298.123 ms
+Maximum count time: 1.131 s
+===== LEX INDEX 18 END =====
+===== LEX INDEX 19 START =====
+Deps time: 1.401 ms
+Comp. miss time: 58.651 us
+
+Pieces not pruned: 6 (pruned: 0)
+Total dist time: 18.677 ms
+Average dist time: 3.113 ms
+Maximum dist time: 4.026 ms
+
+Total count time: 2.799 ms
+Average count time: 466.466 us
+Maximum count time: 519.037 us
+===== LEX INDEX 19 END =====
+===== LEX INDEX 22 START =====
+Deps time: 3.287 ms
+Comp. miss time: 127.554 us
+
+Pieces not pruned: 10 (pruned: 0)
+Total dist time: 52.970 ms
+Average dist time: 5.297 ms
+Maximum dist time: 7.062 ms
+
+Total count time: 27.589 ms
+Average count time: 2.759 ms
+Maximum count time: 4.473 ms
+===== LEX INDEX 22 END =====
+===== LEX INDEX 23 START =====
+Deps time: 2.608 ms
+Comp. miss time: 57.220 us
+
+Pieces not pruned: 6 (pruned: 0)
+Total dist time: 37.493 ms
+Average dist time: 6.249 ms
+Maximum dist time: 7.411 ms
+
+Total count time: 23.050 ms
+Average count time: 3.842 ms
+Maximum count time: 5.295 ms
+===== LEX INDEX 23 END =====
+===== LEX INDEX 24 START =====
+Deps time: 2.121 ms
+Comp. miss time: 54.836 us
+
+Pieces not pruned: 6 (pruned: 0)
+Total dist time: 22.609 ms
+Average dist time: 3.768 ms
+Maximum dist time: 4.735 ms
+
+Total count time: 4.018 ms
+Average count time: 669.678 us
+Maximum count time: 929.117 us
+===== LEX INDEX 24 END =====
+===== LEX INDEX 9 START =====
+Deps time: 66.996 us
+Comp. miss time: 0.000 us
+
+===== LEX INDEX 13 START =====
+Deps time: 46.253 us
+Comp. miss time: 54.598 us
+
+===== LEX INDEX 15 START =====
+Deps time: 129.461 us
+Comp. miss time: 103.235 us
+
+===== LEX INDEX 20 START =====
+Deps time: 2.556 ms
+Comp. miss time: 55.313 us
+
+Pieces not pruned: 6 (pruned: 0)
+Total dist time: 20.411 ms
+Average dist time: 3.402 ms
+Maximum dist time: 3.901 ms
+
+Total count time: 47.922 us
+Average count time: 7.987 us
+Maximum count time: 8.345 us
+===== LEX INDEX 20 END =====
+===== LEX INDEX 25 START =====
+Deps time: 5.999 ms
+Comp. miss time: 122.786 us
+
+Pieces not pruned: 10 (pruned: 0)
+Total dist time: 39.071 ms
+Average dist time: 3.907 ms
+Maximum dist time: 4.966 ms
+
+Total count time: 5.046 ms
+Average count time: 504.637 us
+Maximum count time: 607.252 us
+===== LEX INDEX 25 END =====
+total compulsory misses = 3120600
+total capacity misses = 583417234
+total misses = 586537834
+time elapsed: 1.649 s
+/home/aduhtkjm/llvm/polybench/linear-algebra/solvers/trisolv/trisolv.c
+===== LEX INDEX 2 START =====
+Deps time: 20.742 us
+Comp. miss time: 0.000 us
+
+===== LEX INDEX 5 START =====
+Deps time: 36.240 us
+Comp. miss time: 124.454 us
+
+===== LEX INDEX 6 START =====
+Deps time: 1.267 ms
+Comp. miss time: 35.286 us
+
+Pieces not pruned: 4 (pruned: 0)
+Total dist time: 8.111 ms
+Average dist time: 2.028 ms
+Maximum dist time: 3.283 ms
+
+Total count time: 14.136 ms
+Average count time: 3.534 ms
+Maximum count time: 6.660 ms
+===== LEX INDEX 6 END =====
+===== LEX INDEX 7 START =====
+Deps time: 499.487 us
+Comp. miss time: 22.888 us
+
+Pieces not pruned: 4 (pruned: 0)
+Total dist time: 3.740 ms
+Average dist time: 935.078 us
+Maximum dist time: 1.261 ms
+
+Total count time: 1.365 ms
+Average count time: 341.296 us
+Maximum count time: 383.139 us
+===== LEX INDEX 7 END =====
+===== LEX INDEX 9 START =====
+Deps time: 282.049 us
+Comp. miss time: 6.199 us
+
+Pieces not pruned: 3 (pruned: 0)
+Total dist time: 967.264 us
+Average dist time: 322.421 us
+Maximum dist time: 511.885 us
+
+Total count time: 13.590 us
+Average count time: 4.530 us
+Maximum count time: 5.245 us
+===== LEX INDEX 9 END =====
+===== LEX INDEX 10 START =====
+Deps time: 31.710 us
+Comp. miss time: 0.000 us
+
+===== LEX INDEX 3 START =====
+Deps time: 40.770 us
+Comp. miss time: 56.982 us
+
+===== LEX INDEX 8 START =====
+Deps time: 803.471 us
+Comp. miss time: 17.405 us
+
+Pieces not pruned: 4 (pruned: 0)
+Total dist time: 4.143 ms
+Average dist time: 1.036 ms
+Maximum dist time: 1.149 ms
+
+Total count time: 28.133 us
+Average count time: 7.033 us
+Maximum count time: 7.868 us
+===== LEX INDEX 8 END =====
+===== LEX INDEX 11 START =====
+Deps time: 427.008 us
+Comp. miss time: 7.153 us
+
+Pieces not pruned: 3 (pruned: 0)
+Total dist time: 1.220 ms
+Average dist time: 406.583 us
+Maximum dist time: 549.793 us
+
+Total count time: 199.795 us
+Average count time: 66.598 us
+Maximum count time: 76.771 us
+===== LEX INDEX 11 END =====
+total compulsory misses = 2005000
+total capacity misses = 0
+total misses = 2005000
+time elapsed: 38.864 ms
+/home/aduhtkjm/llvm/polybench/linear-algebra/solvers/durbin/durbin.c
+===== LEX INDEX 2 START =====
+Deps time: 23.603 us
+Comp. miss time: 0.000 us
+
+===== LEX INDEX 5 START =====
+Deps time: 59.128 us
+Comp. miss time: 2.146 us
+
+Pieces not pruned: 1 (pruned: 0)
+Total dist time: 76.294 us
+Average dist time: 76.294 us
+Maximum dist time: 76.294 us
+
+Total count time: 77.486 us
+Average count time: 77.486 us
+Maximum count time: 77.486 us
+===== LEX INDEX 5 END =====
+===== LEX INDEX 14 START =====
+Deps time: 497.103 us
+Comp. miss time: 21.458 us
+
+Pieces not pruned: 4 (pruned: 0)
+Total dist time: 3.782 ms
+Average dist time: 945.568 us
+Maximum dist time: 1.524 ms
+
+Total count time: 6.317 ms
+Average count time: 1.579 ms
+Maximum count time: 3.048 ms
+===== LEX INDEX 14 END =====
+===== LEX INDEX 15 START =====
+Deps time: 1.840 ms
+Comp. miss time: 62.227 us
+
+Pieces not pruned: 7 (pruned: 0)
+Total dist time: 10.014 ms
+Average dist time: 1.431 ms
+Maximum dist time: 5.285 ms
+
+Total count time: 20.061 ms
+Average count time: 2.866 ms
+Maximum count time: 14.520 ms
+===== LEX INDEX 15 END =====
+===== LEX INDEX 18 START =====
+Deps time: 45.776 us
+Comp. miss time: 0.000 us
+
+===== LEX INDEX 23 START =====
+Deps time: 5.146 ms
+Comp. miss time: 208.139 us
+
+Pieces not pruned: 19 (pruned: 0)
+Total dist time: 23.275 ms
+Average dist time: 1.225 ms
+Maximum dist time: 2.528 ms
+
+Total count time: 19.822 ms
+Average count time: 1.043 ms
+Maximum count time: 5.151 ms
+===== LEX INDEX 23 END =====
+===== LEX INDEX 25 START =====
+Deps time: 5.968 ms
+Comp. miss time: 178.337 us
+
+Pieces not pruned: 16 (pruned: 0)
+Total dist time: 23.614 ms
+Average dist time: 1.476 ms
+Maximum dist time: 2.435 ms
+
+Total count time: 18.418 ms
+Average count time: 1.151 ms
+Maximum count time: 3.304 ms
+===== LEX INDEX 25 END =====
+===== LEX INDEX 28 START =====
+Deps time: 618.696 us
+Comp. miss time: 55.552 us
+
+Pieces not pruned: 6 (pruned: 0)
+Total dist time: 7.755 ms
+Average dist time: 1.293 ms
+Maximum dist time: 1.586 ms
+
+Total count time: 9.899 ms
+Average count time: 1.650 ms
+Maximum count time: 3.304 ms
+===== LEX INDEX 28 END =====
+===== LEX INDEX 3 START =====
+Deps time: 25.272 us
+Comp. miss time: 0.000 us
+
+===== LEX INDEX 26 START =====
+Deps time: 218.630 us
+Comp. miss time: 81.539 us
+
+Pieces not pruned: 2 (pruned: 0)
+Total dist time: 3.880 ms
+Average dist time: 1.940 ms
+Maximum dist time: 1.991 ms
+
+Total count time: 26.544 ms
+Average count time: 13.272 ms
+Maximum count time: 15.826 ms
+===== LEX INDEX 26 END =====
+===== LEX INDEX 29 START =====
+Deps time: 6.014 ms
+Comp. miss time: 148.058 us
+
+Pieces not pruned: 13 (pruned: 0)
+Total dist time: 30.218 ms
+Average dist time: 2.324 ms
+Maximum dist time: 8.749 ms
+
+Total count time: 37.545 ms
+Average count time: 2.888 ms
+Maximum count time: 16.504 ms
+===== LEX INDEX 29 END =====
+===== LEX INDEX 31 START =====
+Deps time: 88.930 us
+Comp. miss time: 0.000 us
+
+total compulsory misses = 5999
+total capacity misses = 0
+total misses = 5999
+time elapsed: 266.511 ms
+/home/aduhtkjm/llvm/polybench/linear-algebra/solvers/ludcmp/ludcmp.c
+===== LEX INDEX 3 START =====
+Deps time: 168.324 us
+Comp. miss time: 0.000 us
+
+===== LEX INDEX 6 START =====
+Deps time: 1.903 ms
+Comp. miss time: 58.174 us
+
+Pieces not pruned: 6 (pruned: 0)
+Total dist time: 19.122 ms
+Average dist time: 3.187 ms
+Maximum dist time: 3.935 ms
+
+Total count time: 21.571 ms
+Average count time: 3.595 ms
+Maximum count time: 6.069 ms
+===== LEX INDEX 6 END =====
+===== LEX INDEX 7 START =====
+Deps time: 1.428 ms
+Comp. miss time: 83.923 us
+
+Pieces not pruned: 6 (pruned: 0)
+Total dist time: 63.517 ms
+Average dist time: 10.586 ms
+Maximum dist time: 22.494 ms
+
+Total count time: 69.077 s
+Average count time: 11.513 s
+Maximum count time: 62.590 s
+===== LEX INDEX 7 END =====
+===== LEX INDEX 11 START =====
+Deps time: 654.459 us
+Comp. miss time: 21.458 us
+
+Pieces not pruned: 3 (pruned: 0)
+Total dist time: 13.107 ms
+Average dist time: 4.369 ms
+Maximum dist time: 5.633 ms
+
+Total count time: 5.242 s
+Average count time: 1.747 s
+Maximum count time: 5.215 s
+===== LEX INDEX 11 END =====
+===== LEX INDEX 14 START =====
+Deps time: 235.319 us
+Comp. miss time: 0.000 us
+
+===== LEX INDEX 17 START =====
+Deps time: 1.272 ms
+Comp. miss time: 97.275 us
+
+Pieces not pruned: 6 (pruned: 0)
+Total dist time: 20.949 ms
+Average dist time: 3.492 ms
+Maximum dist time: 4.431 ms
+
+Total count time: 21.783 ms
+Average count time: 3.631 ms
+Maximum count time: 5.549 ms
+===== LEX INDEX 17 END =====
+===== LEX INDEX 18 START =====
+Deps time: 1.974 ms
+Comp. miss time: 76.532 us
+
+Pieces not pruned: 6 (pruned: 0)
+Total dist time: 53.906 ms
+Average dist time: 8.984 ms
+Maximum dist time: 11.230 ms
+
+Total count time: 13.548 s
+Average count time: 2.258 s
+Maximum count time: 6.857 s
+===== LEX INDEX 18 END =====
+===== LEX INDEX 24 START =====
+Deps time: 42.915 us
+Comp. miss time: 0.000 us
+
+===== LEX INDEX 27 START =====
+Deps time: 1.432 ms
+Comp. miss time: 38.862 us
+
+Pieces not pruned: 5 (pruned: 0)
+Total dist time: 18.495 ms
+Average dist time: 3.699 ms
+Maximum dist time: 6.704 ms
+
+Total count time: 137.127 ms
+Average count time: 27.425 ms
+Maximum count time: 93.877 ms
+===== LEX INDEX 27 END =====
+===== LEX INDEX 28 START =====
+Deps time: 271.082 us
+Comp. miss time: 20.742 us
+
+Pieces not pruned: 3 (pruned: 0)
+Total dist time: 3.144 ms
+Average dist time: 1.048 ms
+Maximum dist time: 1.250 ms
+
+Total count time: 5.303 ms
+Average count time: 1.768 ms
+Maximum count time: 2.648 ms
+===== LEX INDEX 28 END =====
+===== LEX INDEX 34 START =====
+Deps time: 161.409 us
+Comp. miss time: 7.868 us
+
+Pieces not pruned: 3 (pruned: 0)
+Total dist time: 1.057 ms
+Average dist time: 352.462 us
+Maximum dist time: 634.193 us
+
+Total count time: 5.937 ms
+Average count time: 1.979 ms
+Maximum count time: 5.595 ms
+===== LEX INDEX 34 END =====
+===== LEX INDEX 37 START =====
+Deps time: 1.167 ms
+Comp. miss time: 53.644 us
+
+Pieces not pruned: 6 (pruned: 0)
+Total dist time: 18.691 ms
+Average dist time: 3.115 ms
+Maximum dist time: 5.189 ms
+
+Total count time: 127.404 ms
+Average count time: 21.234 ms
+Maximum count time: 72.827 ms
+===== LEX INDEX 37 END =====
+===== LEX INDEX 38 START =====
+Deps time: 280.857 us
+Comp. miss time: 21.935 us
+
+Pieces not pruned: 3 (pruned: 0)
+Total dist time: 2.666 ms
+Average dist time: 888.507 us
+Maximum dist time: 1.228 ms
+
+Total count time: 5.597 ms
+Average count time: 1.866 ms
+Maximum count time: 3.254 ms
+===== LEX INDEX 38 END =====
+===== LEX INDEX 42 START =====
+Deps time: 367.641 us
+Comp. miss time: 8.345 us
+
+Pieces not pruned: 3 (pruned: 0)
+Total dist time: 5.438 ms
+Average dist time: 1.813 ms
+Maximum dist time: 3.119 ms
+
+Total count time: 21.591 ms
+Average count time: 7.197 ms
+Maximum count time: 16.691 ms
+===== LEX INDEX 42 END =====
+===== LEX INDEX 12 START =====
+Deps time: 386.715 us
+Comp. miss time: 19.073 us
+
+Pieces not pruned: 4 (pruned: 0)
+Total dist time: 7.224 ms
+Average dist time: 1.806 ms
+Maximum dist time: 1.970 ms
+
+Total count time: 3.793 ms
+Average count time: 948.250 us
+Maximum count time: 1.053 ms
+===== LEX INDEX 12 END =====
+===== LEX INDEX 22 START =====
+Deps time: 368.357 us
+Comp. miss time: 12.159 us
+
+Pieces not pruned: 3 (pruned: 0)
+Total dist time: 4.831 ms
+Average dist time: 1.610 ms
+Maximum dist time: 1.813 ms
+
+Total count time: 1.702 ms
+Average count time: 567.436 us
+Maximum count time: 646.830 us
+===== LEX INDEX 22 END =====
+===== LEX INDEX 32 START =====
+Deps time: 35.048 us
+Comp. miss time: 0.000 us
+
+===== LEX INDEX 43 START =====
+Deps time: 36.955 us
+Comp. miss time: 84.162 us
+
+total compulsory misses = 4006000
+total capacity misses = 2595306151
+total misses = 2599312151
+time elapsed: 88.472 s
+/home/aduhtkjm/llvm/polybench/linear-algebra/solvers/lu/lu.c
+===== LEX INDEX 4 START =====
+Deps time: 4.098 ms
+Comp. miss time: 146.389 us
+
+Pieces not pruned: 8 (pruned: 0)
+Total dist time: 42.511 ms
+Average dist time: 5.314 ms
+Maximum dist time: 9.155 ms
+
+Total count time: 37.070 ms
+Average count time: 4.634 ms
+Maximum count time: 10.274 ms
+===== LEX INDEX 4 END =====
+===== LEX INDEX 5 START =====
+Deps time: 1.334 ms
+Comp. miss time: 90.837 us
+
+Pieces not pruned: 6 (pruned: 0)
+Total dist time: 98.577 ms
+Average dist time: 16.429 ms
+Maximum dist time: 22.098 ms
+
+Total count time: 68.477 s
+Average count time: 11.413 s
+Maximum count time: 62.082 s
+===== LEX INDEX 5 END =====
+===== LEX INDEX 6 START =====
+Deps time: 1.098 ms
+Comp. miss time: 353.813 us
+
+Pieces not pruned: 4 (pruned: 0)
+Total dist time: 13.711 ms
+Average dist time: 3.428 ms
+Maximum dist time: 4.017 ms
+
+Total count time: 2.337 ms
+Average count time: 584.304 us
+Maximum count time: 704.050 us
+===== LEX INDEX 6 END =====
+===== LEX INDEX 8 START =====
+Deps time: 672.579 us
+Comp. miss time: 41.485 us
+
+Pieces not pruned: 3 (pruned: 0)
+Total dist time: 23.681 ms
+Average dist time: 7.894 ms
+Maximum dist time: 10.117 ms
+
+Total count time: 5.890 s
+Average count time: 1.963 s
+Maximum count time: 5.857 s
+===== LEX INDEX 8 END =====
+===== LEX INDEX 9 START =====
+Deps time: 818.014 us
+Comp. miss time: 85.831 us
+
+Pieces not pruned: 4 (pruned: 0)
+Total dist time: 8.078 ms
+Average dist time: 2.019 ms
+Maximum dist time: 2.136 ms
+
+Total count time: 546.932 us
+Average count time: 136.733 us
+Maximum count time: 153.780 us
+===== LEX INDEX 9 END =====
+===== LEX INDEX 13 START =====
+Deps time: 2.069 ms
+Comp. miss time: 168.324 us
+
+Pieces not pruned: 9 (pruned: 0)
+Total dist time: 44.516 ms
+Average dist time: 4.946 ms
+Maximum dist time: 9.233 ms
+
+Total count time: 33.633 ms
+Average count time: 3.737 ms
+Maximum count time: 8.877 ms
+===== LEX INDEX 13 END =====
+===== LEX INDEX 14 START =====
+Deps time: 1.781 ms
+Comp. miss time: 180.483 us
+
+Pieces not pruned: 6 (pruned: 0)
+Total dist time: 98.928 ms
+Average dist time: 16.488 ms
+Maximum dist time: 21.083 ms
+
+Total count time: 12.728 s
+Average count time: 2.121 s
+Maximum count time: 6.144 s
+===== LEX INDEX 14 END =====
+===== LEX INDEX 15 START =====
+Deps time: 997.543 us
+Comp. miss time: 254.869 us
+
+Pieces not pruned: 3 (pruned: 0)
+Total dist time: 10.689 ms
+Average dist time: 3.563 ms
+Maximum dist time: 3.908 ms
+
+Total count time: 1.654 ms
+Average count time: 551.303 us
+Maximum count time: 557.661 us
+===== LEX INDEX 15 END =====
+===== LEX INDEX 7 START =====
+Deps time: 2.420 ms
+Comp. miss time: 82.016 us
+
+Pieces not pruned: 8 (pruned: 0)
+Total dist time: 25.682 ms
+Average dist time: 3.210 ms
+Maximum dist time: 3.668 ms
+
+Total count time: 69.380 us
+Average count time: 8.672 us
+Maximum count time: 10.490 us
+===== LEX INDEX 7 END =====
+===== LEX INDEX 10 START =====
+Deps time: 1.461 ms
+Comp. miss time: 39.816 us
+
+Pieces not pruned: 7 (pruned: 0)
+Total dist time: 9.267 ms
+Average dist time: 1.324 ms
+Maximum dist time: 1.948 ms
+
+Total count time: 46.015 us
+Average count time: 6.574 us
+Maximum count time: 9.060 us
+===== LEX INDEX 10 END =====
+===== LEX INDEX 16 START =====
+Deps time: 1.752 ms
+Comp. miss time: 59.605 us
+
+Pieces not pruned: 6 (pruned: 0)
+Total dist time: 19.648 ms
+Average dist time: 3.275 ms
+Maximum dist time: 3.706 ms
+
+Total count time: 53.644 us
+Average count time: 8.941 us
+Maximum count time: 10.729 us
+===== LEX INDEX 16 END =====
+total compulsory misses = 4000000
+total capacity misses = 2591305171
+total misses = 2595305171
+time elapsed: 87.598 s
+/home/aduhtkjm/llvm/polybench/linear-algebra/kernels/2mm/2mm.c
+===== LEX INDEX 6 START =====
+Deps time: 298.023 us
+Comp. miss time: 374.079 us
+
+Pieces not pruned: 4 (pruned: 0)
+Total dist time: 22.536 ms
+Average dist time: 5.634 ms
+Maximum dist time: 6.802 ms
+
+Total count time: 13.564 ms
+Average count time: 3.391 ms
+Maximum count time: 4.590 ms
+===== LEX INDEX 6 END =====
+===== LEX INDEX 7 START =====
+Deps time: 268.698 us
+Comp. miss time: 338.793 us
+
+Pieces not pruned: 4 (pruned: 0)
+Total dist time: 55.417 ms
+Average dist time: 13.854 ms
+Maximum dist time: 18.444 ms
+
+Total count time: 40.997 ms
+Average count time: 10.249 ms
+Maximum count time: 15.310 ms
+===== LEX INDEX 7 END =====
+===== LEX INDEX 8 START =====
+Deps time: 769.615 us
+Comp. miss time: 315.905 us
+
+Pieces not pruned: 4 (pruned: 0)
+Total dist time: 8.540 ms
+Average dist time: 2.135 ms
+Maximum dist time: 2.177 ms
+
+Total count time: 2.121 ms
+Average count time: 530.183 us
+Maximum count time: 578.403 us
+===== LEX INDEX 8 END =====
+===== LEX INDEX 13 START =====
+Deps time: 1.610 ms
+Comp. miss time: 77.486 us
+
+Pieces not pruned: 8 (pruned: 0)
+Total dist time: 58.483 ms
+Average dist time: 7.310 ms
+Maximum dist time: 11.605 ms
+
+Total count time: 47.660 ms
+Average count time: 5.958 ms
+Maximum count time: 13.080 ms
+===== LEX INDEX 13 END =====
+===== LEX INDEX 14 START =====
+Deps time: 298.023 us
+Comp. miss time: 326.157 us
+
+Pieces not pruned: 4 (pruned: 0)
+Total dist time: 55.279 ms
+Average dist time: 13.820 ms
+Maximum dist time: 18.394 ms
+
+Total count time: 50.385 ms
+Average count time: 12.596 ms
+Maximum count time: 18.641 ms
+===== LEX INDEX 14 END =====
+===== LEX INDEX 15 START =====
+Deps time: 757.456 us
+Comp. miss time: 312.090 us
+
+Pieces not pruned: 4 (pruned: 0)
+Total dist time: 8.567 ms
+Average dist time: 2.142 ms
+Maximum dist time: 2.201 ms
+
+Total count time: 2.050 ms
+Average count time: 512.481 us
+Maximum count time: 531.912 us
+===== LEX INDEX 15 END =====
+===== LEX INDEX 9 START =====
+Deps time: 1.951 ms
+Comp. miss time: 99.659 us
+
+Pieces not pruned: 8 (pruned: 0)
+Total dist time: 16.082 ms
+Average dist time: 2.010 ms
+Maximum dist time: 2.153 ms
+
+Total count time: 66.042 us
+Average count time: 8.255 us
+Maximum count time: 9.298 us
+===== LEX INDEX 9 END =====
+===== LEX INDEX 16 START =====
+Deps time: 1.954 ms
+Comp. miss time: 101.805 us
+
+Pieces not pruned: 8 (pruned: 0)
+Total dist time: 16.088 ms
+Average dist time: 2.011 ms
+Maximum dist time: 2.121 ms
+
+Total count time: 68.903 us
+Average count time: 8.613 us
+Maximum count time: 10.967 us
+===== LEX INDEX 16 END =====
+total compulsory misses = 4630000
+total capacity misses = 1654650000
+total misses = 1659280000
+time elapsed: 411.682 ms
+/home/aduhtkjm/llvm/polybench/linear-algebra/kernels/doitgen/doitgen.c
+===== LEX INDEX 18 START =====
+Deps time: 917.435 us
+Comp. miss time: 1.411 ms
+
+Pieces not pruned: 8 (pruned: 0)
+Total dist time: 84.444 ms
+Average dist time: 10.556 ms
+Maximum dist time: 12.436 ms
+
+Total count time: 58.806 ms
+Average count time: 7.351 ms
+Maximum count time: 10.136 ms
+===== LEX INDEX 18 END =====
+===== LEX INDEX 19 START =====
+Deps time: 2.755 ms
+Comp. miss time: 792.503 us
+
+Pieces not pruned: 16 (pruned: 0)
+Total dist time: 506.365 ms
+Average dist time: 31.648 ms
+Maximum dist time: 80.935 ms
+
+Total count time: 550.494 ms
+Average count time: 34.406 ms
+Maximum count time: 93.325 ms
+===== LEX INDEX 19 END =====
+===== LEX INDEX 20 START =====
+Deps time: 75.381 ms
+Comp. miss time: 933.409 us
+
+Pieces not pruned: 36 (pruned: 0)
+Total dist time: 142.390 ms
+Average dist time: 3.955 ms
+Maximum dist time: 6.000 ms
+
+Total count time: 27.688 ms
+Average count time: 769.112 us
+Maximum count time: 869.989 us
+===== LEX INDEX 20 END =====
+===== LEX INDEX 23 START =====
+Deps time: 42.154 ms
+Comp. miss time: 332.117 us
+
+Pieces not pruned: 18 (pruned: 0)
+Total dist time: 62.929 ms
+Average dist time: 3.496 ms
+Maximum dist time: 5.569 ms
+
+Total count time: 45.262 ms
+Average count time: 2.515 ms
+Maximum count time: 5.208 ms
+===== LEX INDEX 23 END =====
+===== LEX INDEX 16 START =====
+Deps time: 10.925 ms
+Comp. miss time: 206.947 us
+
+Pieces not pruned: 8 (pruned: 0)
+Total dist time: 49.887 ms
+Average dist time: 6.236 ms
+Maximum dist time: 10.257 ms
+
+Total count time: 51.610 ms
+Average count time: 6.451 ms
+Maximum count time: 16.781 ms
+===== LEX INDEX 16 END =====
+===== LEX INDEX 21 START =====
+Deps time: 114.770 ms
+Comp. miss time: 1.533 ms
+
+Pieces not pruned: 36 (pruned: 0)
+Total dist time: 160.601 ms
+Average dist time: 4.461 ms
+Maximum dist time: 5.944 ms
+
+Total count time: 348.568 us
+Average count time: 9.682 us
+Maximum count time: 13.113 us
+===== LEX INDEX 21 END =====
+===== LEX INDEX 24 START =====
+Deps time: 672.817 us
+Comp. miss time: 102.520 us
+
+Pieces not pruned: 8 (pruned: 0)
+Total dist time: 38.783 ms
+Average dist time: 4.848 ms
+Maximum dist time: 5.737 ms
+
+Total count time: 31.984 ms
+Average count time: 3.998 ms
+Maximum count time: 5.783 ms
+===== LEX INDEX 24 END =====
+total compulsory misses = 3385760
+total capacity misses = 0
+total misses = 3385760
+time elapsed: 2.071 s
+/home/aduhtkjm/llvm/polybench/linear-algebra/kernels/atax/atax.c
+===== LEX INDEX 6 START =====
+Deps time: 504.017 us
+Comp. miss time: 20.266 us
+
+Pieces not pruned: 4 (pruned: 0)
+Total dist time: 1.839 ms
+Average dist time: 459.790 us
+Maximum dist time: 618.458 us
+
+Total count time: 21.219 us
+Average count time: 5.305 us
+Maximum count time: 6.437 us
+===== LEX INDEX 6 END =====
+===== LEX INDEX 7 START =====
+Deps time: 41.962 us
+Comp. miss time: 0.000 us
+
+===== LEX INDEX 8 START =====
+Deps time: 96.798 us
+Comp. miss time: 88.930 us
+
+Pieces not pruned: 2 (pruned: 0)
+Total dist time: 6.017 ms
+Average dist time: 3.009 ms
+Maximum dist time: 3.484 ms
+
+Total count time: 10.071 ms
+Average count time: 5.036 ms
+Maximum count time: 5.905 ms
+===== LEX INDEX 8 END =====
+===== LEX INDEX 11 START =====
+Deps time: 435.829 us
+Comp. miss time: 19.789 us
+
+Pieces not pruned: 4 (pruned: 0)
+Total dist time: 7.257 ms
+Average dist time: 1.814 ms
+Maximum dist time: 2.639 ms
+
+Total count time: 13.505 ms
+Average count time: 3.376 ms
+Maximum count time: 5.650 ms
+===== LEX INDEX 11 END =====
+===== LEX INDEX 12 START =====
+Deps time: 189.543 us
+Comp. miss time: 22.888 us
+
+Pieces not pruned: 4 (pruned: 0)
+Total dist time: 8.125 ms
+Average dist time: 2.031 ms
+Maximum dist time: 2.402 ms
+
+Total count time: 10.601 ms
+Average count time: 2.650 ms
+Maximum count time: 3.534 ms
+===== LEX INDEX 12 END =====
+===== LEX INDEX 13 START =====
+Deps time: 627.041 us
+Comp. miss time: 20.266 us
+
+Pieces not pruned: 4 (pruned: 0)
+Total dist time: 4.249 ms
+Average dist time: 1.062 ms
+Maximum dist time: 1.336 ms
+
+Total count time: 1.652 ms
+Average count time: 413.120 us
+Maximum count time: 546.694 us
+===== LEX INDEX 13 END =====
+===== LEX INDEX 2 START =====
+Deps time: 19.312 us
+Comp. miss time: 0.000 us
+
+===== LEX INDEX 4 START =====
+Deps time: 30.756 us
+Comp. miss time: 54.121 us
+
+===== LEX INDEX 9 START =====
+Deps time: 684.023 us
+Comp. miss time: 20.504 us
+
+Pieces not pruned: 4 (pruned: 0)
+Total dist time: 4.361 ms
+Average dist time: 1.090 ms
+Maximum dist time: 1.108 ms
+
+Total count time: 1.145 ms
+Average count time: 286.162 us
+Maximum count time: 306.606 us
+===== LEX INDEX 9 END =====
+===== LEX INDEX 14 START =====
+Deps time: 833.988 us
+Comp. miss time: 30.518 us
+
+Pieces not pruned: 6 (pruned: 0)
+Total dist time: 6.347 ms
+Average dist time: 1.058 ms
+Maximum dist time: 1.300 ms
+
+Total count time: 1.673 ms
+Average count time: 278.751 us
+Maximum count time: 314.713 us
+===== LEX INDEX 14 END =====
+total compulsory misses = 3996100
+total capacity misses = 0
+total misses = 3996100
+time elapsed: 82.629 ms
+/home/aduhtkjm/llvm/polybench/linear-algebra/kernels/mvt/mvt.c
+===== LEX INDEX 3 START =====
+Deps time: 268.936 us
+Comp. miss time: 84.639 us
+
+Pieces not pruned: 2 (pruned: 0)
+Total dist time: 782.728 us
+Average dist time: 391.364 us
+Maximum dist time: 450.850 us
+
+Total count time: 10.490 us
+Average count time: 5.245 us
+Maximum count time: 6.199 us
+===== LEX INDEX 3 END =====
+===== LEX INDEX 4 START =====
+Deps time: 26.703 us
+Comp. miss time: 0.000 us
+
+===== LEX INDEX 5 START =====
+Deps time: 92.745 us
+Comp. miss time: 103.951 us
+
+Pieces not pruned: 2 (pruned: 0)
+Total dist time: 4.436 ms
+Average dist time: 2.218 ms
+Maximum dist time: 2.710 ms
+
+Total count time: 5.335 ms
+Average count time: 2.668 ms
+Maximum count time: 3.659 ms
+===== LEX INDEX 5 END =====
+===== LEX INDEX 9 START =====
+Deps time: 216.961 us
+Comp. miss time: 119.209 us
+
+Pieces not pruned: 2 (pruned: 0)
+Total dist time: 774.860 us
+Average dist time: 387.430 us
+Maximum dist time: 428.438 us
+
+Total count time: 10.490 us
+Average count time: 5.245 us
+Maximum count time: 5.960 us
+===== LEX INDEX 9 END =====
+===== LEX INDEX 10 START =====
+Deps time: 181.437 us
+Comp. miss time: 22.888 us
+
+Pieces not pruned: 4 (pruned: 0)
+Total dist time: 13.725 ms
+Average dist time: 3.431 ms
+Maximum dist time: 4.347 ms
+
+Total count time: 98.511 ms
+Average count time: 24.628 ms
+Maximum count time: 76.663 ms
+===== LEX INDEX 10 END =====
+===== LEX INDEX 11 START =====
+Deps time: 151.873 us
+Comp. miss time: 87.261 us
+
+Pieces not pruned: 2 (pruned: 0)
+Total dist time: 4.540 ms
+Average dist time: 2.270 ms
+Maximum dist time: 2.741 ms
+
+Total count time: 5.591 ms
+Average count time: 2.795 ms
+Maximum count time: 3.891 ms
+===== LEX INDEX 11 END =====
+===== LEX INDEX 6 START =====
+Deps time: 417.709 us
+Comp. miss time: 20.504 us
+
+Pieces not pruned: 4 (pruned: 0)
+Total dist time: 3.635 ms
+Average dist time: 908.852 us
+Maximum dist time: 931.501 us
+
+Total count time: 1.166 ms
+Average count time: 291.467 us
+Maximum count time: 325.203 us
+===== LEX INDEX 6 END =====
+===== LEX INDEX 12 START =====
+Deps time: 410.795 us
+Comp. miss time: 20.981 us
+
+Pieces not pruned: 4 (pruned: 0)
+Total dist time: 3.665 ms
+Average dist time: 916.183 us
+Maximum dist time: 986.814 us
+
+Total count time: 1.151 ms
+Average count time: 287.712 us
+Maximum count time: 311.613 us
+===== LEX INDEX 12 END =====
+total compulsory misses = 4008000
+total capacity misses = 3964890
+total misses = 7972890
+time elapsed: 147.290 ms
+/home/aduhtkjm/llvm/polybench/linear-algebra/kernels/3mm/3mm.c
+===== LEX INDEX 4 START =====
+Deps time: 321.865 us
+Comp. miss time: 322.819 us
+
+Pieces not pruned: 4 (pruned: 0)
+Total dist time: 22.363 ms
+Average dist time: 5.591 ms
+Maximum dist time: 6.844 ms
+
+Total count time: 13.565 ms
+Average count time: 3.391 ms
+Maximum count time: 4.558 ms
+===== LEX INDEX 4 END =====
+===== LEX INDEX 5 START =====
+Deps time: 275.135 us
+Comp. miss time: 322.104 us
+
+Pieces not pruned: 4 (pruned: 0)
+Total dist time: 55.322 ms
+Average dist time: 13.830 ms
+Maximum dist time: 18.341 ms
+
+Total count time: 41.153 ms
+Average count time: 10.288 ms
+Maximum count time: 15.529 ms
+===== LEX INDEX 5 END =====
+===== LEX INDEX 6 START =====
+Deps time: 735.998 us
+Comp. miss time: 346.899 us
+
+Pieces not pruned: 4 (pruned: 0)
+Total dist time: 8.655 ms
+Average dist time: 2.164 ms
+Maximum dist time: 2.250 ms
+
+Total count time: 2.047 ms
+Average count time: 511.825 us
+Maximum count time: 537.872 us
+===== LEX INDEX 6 END =====
+===== LEX INDEX 11 START =====
+Deps time: 263.691 us
+Comp. miss time: 383.377 us
+
+Pieces not pruned: 4 (pruned: 0)
+Total dist time: 22.103 ms
+Average dist time: 5.526 ms
+Maximum dist time: 6.788 ms
+
+Total count time: 15.862 ms
+Average count time: 3.965 ms
+Maximum count time: 5.210 ms
+===== LEX INDEX 11 END =====
+===== LEX INDEX 12 START =====
+Deps time: 262.737 us
+Comp. miss time: 349.998 us
+
+Pieces not pruned: 4 (pruned: 0)
+Total dist time: 55.222 ms
+Average dist time: 13.806 ms
+Maximum dist time: 18.382 ms
+
+Total count time: 50.777 ms
+Average count time: 12.694 ms
+Maximum count time: 18.815 ms
+===== LEX INDEX 12 END =====
+===== LEX INDEX 13 START =====
+Deps time: 793.219 us
+Comp. miss time: 320.435 us
+
+Pieces not pruned: 4 (pruned: 0)
+Total dist time: 8.578 ms
+Average dist time: 2.145 ms
+Maximum dist time: 2.204 ms
+
+Total count time: 2.070 ms
+Average count time: 517.607 us
+Maximum count time: 536.680 us
+===== LEX INDEX 13 END =====
+===== LEX INDEX 18 START =====
+Deps time: 1.632 ms
+Comp. miss time: 81.062 us
+
+Pieces not pruned: 8 (pruned: 0)
+Total dist time: 67.575 ms
+Average dist time: 8.447 ms
+Maximum dist time: 13.866 ms
+
+Total count time: 64.426 ms
+Average count time: 8.053 ms
+Maximum count time: 19.246 ms
+===== LEX INDEX 18 END =====
+===== LEX INDEX 19 START =====
+Deps time: 1.678 ms
+Comp. miss time: 81.301 us
+
+Pieces not pruned: 8 (pruned: 0)
+Total dist time: 88.066 ms
+Average dist time: 11.008 ms
+Maximum dist time: 18.245 ms
+
+Total count time: 128.041 ms
+Average count time: 16.005 ms
+Maximum count time: 51.542 ms
+===== LEX INDEX 19 END =====
+===== LEX INDEX 20 START =====
+Deps time: 810.385 us
+Comp. miss time: 319.481 us
+
+Pieces not pruned: 4 (pruned: 0)
+Total dist time: 8.589 ms
+Average dist time: 2.147 ms
+Maximum dist time: 2.214 ms
+
+Total count time: 2.039 ms
+Average count time: 509.739 us
+Maximum count time: 533.342 us
+===== LEX INDEX 20 END =====
+===== LEX INDEX 7 START =====
+Deps time: 1.942 ms
+Comp. miss time: 114.202 us
+
+Pieces not pruned: 8 (pruned: 0)
+Total dist time: 16.197 ms
+Average dist time: 2.025 ms
+Maximum dist time: 2.161 ms
+
+Total count time: 65.804 us
+Average count time: 8.225 us
+Maximum count time: 8.821 us
+===== LEX INDEX 7 END =====
+===== LEX INDEX 14 START =====
+Deps time: 1.958 ms
+Comp. miss time: 99.182 us
+
+Pieces not pruned: 8 (pruned: 0)
+Total dist time: 16.140 ms
+Average dist time: 2.017 ms
+Maximum dist time: 2.124 ms
+
+Total count time: 68.188 us
+Average count time: 8.523 us
+Maximum count time: 10.014 us
+===== LEX INDEX 14 END =====
+===== LEX INDEX 21 START =====
+Deps time: 1.975 ms
+Comp. miss time: 99.182 us
+
+Pieces not pruned: 8 (pruned: 0)
+Total dist time: 16.207 ms
+Average dist time: 2.026 ms
+Maximum dist time: 2.133 ms
+
+Total count time: 66.519 us
+Average count time: 8.315 us
+Maximum count time: 9.537 us
+===== LEX INDEX 21 END =====
+total compulsory misses = 6690000
+total capacity misses = 2698500000
+total misses = 2705190000
+time elapsed: 726.616 ms
+/home/aduhtkjm/llvm/polybench/linear-algebra/kernels/bicg/bicg.c
+===== LEX INDEX 6 START =====
+Deps time: 455.141 us
+Comp. miss time: 18.597 us
+
+Pieces not pruned: 4 (pruned: 0)
+Total dist time: 10.195 ms
+Average dist time: 2.549 ms
+Maximum dist time: 4.595 ms
+
+Total count time: 17.163 ms
+Average count time: 4.291 ms
+Maximum count time: 9.186 ms
+===== LEX INDEX 6 END =====
+===== LEX INDEX 7 START =====
+Deps time: 104.666 us
+Comp. miss time: 78.678 us
+
+Pieces not pruned: 2 (pruned: 0)
+Total dist time: 3.387 ms
+Average dist time: 1.694 ms
+Maximum dist time: 1.703 ms
+
+Total count time: 2.383 ms
+Average count time: 1.191 ms
+Maximum count time: 1.214 ms
+===== LEX INDEX 7 END =====
+===== LEX INDEX 8 START =====
+Deps time: 44.584 us
+Comp. miss time: 0.000 us
+
+===== LEX INDEX 10 START =====
+Deps time: 398.159 us
+Comp. miss time: 19.550 us
+
+Pieces not pruned: 4 (pruned: 0)
+Total dist time: 5.006 ms
+Average dist time: 1.252 ms
+Maximum dist time: 1.631 ms
+
+Total count time: 2.460 ms
+Average count time: 614.941 us
+Maximum count time: 674.486 us
+===== LEX INDEX 10 END =====
+===== LEX INDEX 11 START =====
+Deps time: 202.179 us
+Comp. miss time: 22.411 us
+
+Pieces not pruned: 4 (pruned: 0)
+Total dist time: 6.032 ms
+Average dist time: 1.508 ms
+Maximum dist time: 1.621 ms
+
+Total count time: 964.880 us
+Average count time: 241.220 us
+Maximum count time: 254.869 us
+===== LEX INDEX 11 END =====
+===== LEX INDEX 12 START =====
+Deps time: 101.566 us
+Comp. miss time: 79.870 us
+
+Pieces not pruned: 2 (pruned: 0)
+Total dist time: 9.068 ms
+Average dist time: 4.534 ms
+Maximum dist time: 5.372 ms
+
+Total count time: 13.598 ms
+Average count time: 6.799 ms
+Maximum count time: 9.542 ms
+===== LEX INDEX 12 END =====
+===== LEX INDEX 2 START =====
+Deps time: 20.027 us
+Comp. miss time: 0.000 us
+
+===== LEX INDEX 4 START =====
+Deps time: 25.034 us
+Comp. miss time: 50.545 us
+
+===== LEX INDEX 9 START =====
+Deps time: 795.364 us
+Comp. miss time: 28.610 us
+
+Pieces not pruned: 6 (pruned: 0)
+Total dist time: 6.783 ms
+Average dist time: 1.131 ms
+Maximum dist time: 1.443 ms
+
+Total count time: 1.623 ms
+Average count time: 270.526 us
+Maximum count time: 313.282 us
+===== LEX INDEX 9 END =====
+===== LEX INDEX 13 START =====
+Deps time: 679.970 us
+Comp. miss time: 20.266 us
+
+Pieces not pruned: 4 (pruned: 0)
+Total dist time: 6.753 ms
+Average dist time: 1.688 ms
+Maximum dist time: 1.772 ms
+
+Total count time: 1.109 ms
+Average count time: 277.281 us
+Maximum count time: 289.440 us
+===== LEX INDEX 13 END =====
+total compulsory misses = 3998000
+total capacity misses = 0
+total misses = 3998000
+time elapsed: 91.779 ms
+/home/aduhtkjm/llvm/polybench/linear-algebra/blas/trmm/trmm.c
+===== LEX INDEX 5 START =====
+Deps time: 232.220 us
+Comp. miss time: 223.875 us
+
+Pieces not pruned: 3 (pruned: 0)
+Total dist time: 14.321 ms
+Average dist time: 4.774 ms
+Maximum dist time: 7.326 ms
+
+Total count time: 12.625 ms
+Average count time: 4.208 ms
+Maximum count time: 7.010 ms
+===== LEX INDEX 5 END =====
+===== LEX INDEX 6 START =====
+Deps time: 378.370 us
+Comp. miss time: 363.350 us
+
+Pieces not pruned: 4 (pruned: 0)
+Total dist time: 60.184 ms
+Average dist time: 15.046 ms
+Maximum dist time: 18.979 ms
+
+Total count time: 232.617 ms
+Average count time: 58.154 ms
+Maximum count time: 133.676 ms
+===== LEX INDEX 6 END =====
+===== LEX INDEX 7 START =====
+Deps time: 2.119 ms
+Comp. miss time: 246.286 us
+
+Pieces not pruned: 10 (pruned: 0)
+Total dist time: 43.831 ms
+Average dist time: 4.383 ms
+Maximum dist time: 14.656 ms
+
+Total count time: 69.632 ms
+Average count time: 6.963 ms
+Maximum count time: 54.719 ms
+===== LEX INDEX 7 END =====
+===== LEX INDEX 9 START =====
+Deps time: 1.311 ms
+Comp. miss time: 75.579 us
+
+Pieces not pruned: 8 (pruned: 0)
+Total dist time: 12.038 ms
+Average dist time: 1.505 ms
+Maximum dist time: 3.148 ms
+
+Total count time: 4.783 ms
+Average count time: 597.864 us
+Maximum count time: 3.861 ms
+===== LEX INDEX 9 END =====
+===== LEX INDEX 8 START =====
+Deps time: 3.262 ms
+Comp. miss time: 114.202 us
+
+Pieces not pruned: 10 (pruned: 0)
+Total dist time: 21.082 ms
+Average dist time: 2.108 ms
+Maximum dist time: 2.664 ms
+
+Total count time: 86.546 us
+Average count time: 8.655 us
+Maximum count time: 14.544 us
+===== LEX INDEX 8 END =====
+===== LEX INDEX 10 START =====
+Deps time: 2.398 ms
+Comp. miss time: 48.399 us
+
+Pieces not pruned: 8 (pruned: 0)
+Total dist time: 8.774 ms
+Average dist time: 1.097 ms
+Maximum dist time: 1.601 ms
+
+Total count time: 66.519 us
+Average count time: 8.315 us
+Maximum count time: 17.881 us
+===== LEX INDEX 10 END =====
+total compulsory misses = 1699500
+total capacity misses = 485509387
+total misses = 487208887
+time elapsed: 494.639 ms
+/home/aduhtkjm/llvm/polybench/linear-algebra/blas/gemm/gemm.c
+===== LEX INDEX 5 START =====
+Deps time: 62.704 us
+Comp. miss time: 0.000 us
+
+===== LEX INDEX 9 START =====
+Deps time: 256.777 us
+Comp. miss time: 331.640 us
+
+Pieces not pruned: 4 (pruned: 0)
+Total dist time: 9.068 ms
+Average dist time: 2.267 ms
+Maximum dist time: 2.299 ms
+
+Total count time: 1.992 ms
+Average count time: 498.056 us
+Maximum count time: 523.567 us
+===== LEX INDEX 9 END =====
+===== LEX INDEX 10 START =====
+Deps time: 267.267 us
+Comp. miss time: 374.794 us
+
+Pieces not pruned: 4 (pruned: 0)
+Total dist time: 53.674 ms
+Average dist time: 13.419 ms
+Maximum dist time: 18.485 ms
+
+Total count time: 54.432 ms
+Average count time: 13.608 ms
+Maximum count time: 22.797 ms
+===== LEX INDEX 10 END =====
+===== LEX INDEX 11 START =====
+Deps time: 3.118 ms
+Comp. miss time: 80.109 us
+
+Pieces not pruned: 8 (pruned: 0)
+Total dist time: 28.204 ms
+Average dist time: 3.525 ms
+Maximum dist time: 5.059 ms
+
+Total count time: 19.869 ms
+Average count time: 2.484 ms
+Maximum count time: 4.537 ms
+===== LEX INDEX 11 END =====
+===== LEX INDEX 6 START =====
+Deps time: 270.844 us
+Comp. miss time: 22.650 us
+
+Pieces not pruned: 4 (pruned: 0)
+Total dist time: 2.193 ms
+Average dist time: 548.184 us
+Maximum dist time: 570.774 us
+
+Total count time: 24.796 us
+Average count time: 6.199 us
+Maximum count time: 6.437 us
+===== LEX INDEX 6 END =====
+===== LEX INDEX 12 START =====
+Deps time: 5.486 ms
+Comp. miss time: 77.248 us
+
+Pieces not pruned: 8 (pruned: 0)
+Total dist time: 18.381 ms
+Average dist time: 2.298 ms
+Maximum dist time: 2.447 ms
+
+Total count time: 64.373 us
+Average count time: 8.047 us
+Maximum count time: 8.583 us
+===== LEX INDEX 12 END =====
+total compulsory misses = 3620000
+total capacity misses = 1318680000
+total misses = 1322300000
+time elapsed: 202.330 ms
+/home/aduhtkjm/llvm/polybench/linear-algebra/blas/gemver/gemver.c
+===== LEX INDEX 5 START =====
+Deps time: 57.459 us
+Comp. miss time: 0.000 us
+
+===== LEX INDEX 6 START =====
+Deps time: 107.050 us
+Comp. miss time: 91.314 us
+
+Pieces not pruned: 2 (pruned: 0)
+Total dist time: 2.481 ms
+Average dist time: 1.240 ms
+Maximum dist time: 1.258 ms
+
+Total count time: 2.238 ms
+Average count time: 1.119 ms
+Maximum count time: 1.144 ms
+===== LEX INDEX 6 END =====
+===== LEX INDEX 7 START =====
+Deps time: 100.851 us
+Comp. miss time: 111.103 us
+
+Pieces not pruned: 2 (pruned: 0)
+Total dist time: 6.295 ms
+Average dist time: 3.148 ms
+Maximum dist time: 3.778 ms
+
+Total count time: 11.986 ms
+Average count time: 5.993 ms
+Maximum count time: 7.883 ms
+===== LEX INDEX 7 END =====
+===== LEX INDEX 8 START =====
+Deps time: 139.713 us
+Comp. miss time: 90.599 us
+
+Pieces not pruned: 2 (pruned: 0)
+Total dist time: 2.806 ms
+Average dist time: 1.403 ms
+Maximum dist time: 1.412 ms
+
+Total count time: 2.414 ms
+Average count time: 1.207 ms
+Maximum count time: 1.218 ms
+===== LEX INDEX 8 END =====
+===== LEX INDEX 9 START =====
+Deps time: 109.911 us
+Comp. miss time: 83.447 us
+
+Pieces not pruned: 2 (pruned: 0)
+Total dist time: 6.270 ms
+Average dist time: 3.135 ms
+Maximum dist time: 3.731 ms
+
+Total count time: 10.937 ms
+Average count time: 5.468 ms
+Maximum count time: 7.726 ms
+===== LEX INDEX 9 END =====
+===== LEX INDEX 13 START =====
+Deps time: 221.252 us
+Comp. miss time: 80.824 us
+
+Pieces not pruned: 2 (pruned: 0)
+Total dist time: 821.352 us
+Average dist time: 410.676 us
+Maximum dist time: 468.493 us
+
+Total count time: 11.206 us
+Average count time: 5.603 us
+Maximum count time: 6.437 us
+===== LEX INDEX 13 END =====
+===== LEX INDEX 14 START =====
+Deps time: 455.856 us
+Comp. miss time: 22.173 us
+
+Pieces not pruned: 4 (pruned: 0)
+Total dist time: 13.949 ms
+Average dist time: 3.487 ms
+Maximum dist time: 4.603 ms
+
+Total count time: 100.170 ms
+Average count time: 25.043 ms
+Maximum count time: 79.006 ms
+===== LEX INDEX 14 END =====
+===== LEX INDEX 15 START =====
+Deps time: 153.303 us
+Comp. miss time: 87.738 us
+
+Pieces not pruned: 2 (pruned: 0)
+Total dist time: 4.586 ms
+Average dist time: 2.293 ms
+Maximum dist time: 2.746 ms
+
+Total count time: 5.729 ms
+Average count time: 2.865 ms
+Maximum count time: 3.926 ms
+===== LEX INDEX 15 END =====
+===== LEX INDEX 18 START =====
+Deps time: 156.164 us
+Comp. miss time: 3.815 us
+
+Pieces not pruned: 2 (pruned: 0)
+Total dist time: 915.289 us
+Average dist time: 457.644 us
+Maximum dist time: 656.605 us
+
+Total count time: 1.657 ms
+Average count time: 828.505 us
+Maximum count time: 1.439 ms
+===== LEX INDEX 18 END =====
+===== LEX INDEX 19 START =====
+Deps time: 22.888 us
+Comp. miss time: 0.000 us
+
+===== LEX INDEX 23 START =====
+Deps time: 211.000 us
+Comp. miss time: 74.625 us
+
+Pieces not pruned: 2 (pruned: 0)
+Total dist time: 809.193 us
+Average dist time: 404.596 us
+Maximum dist time: 410.318 us
+
+Total count time: 11.444 us
+Average count time: 5.722 us
+Maximum count time: 6.199 us
+===== LEX INDEX 23 END =====
+===== LEX INDEX 24 START =====
+Deps time: 808.477 us
+Comp. miss time: 23.842 us
+
+Pieces not pruned: 4 (pruned: 0)
+Total dist time: 14.596 ms
+Average dist time: 3.649 ms
+Maximum dist time: 4.626 ms
+
+Total count time: 104.877 ms
+Average count time: 26.219 ms
+Maximum count time: 79.040 ms
+===== LEX INDEX 24 END =====
+===== LEX INDEX 25 START =====
+Deps time: 753.641 us
+Comp. miss time: 19.789 us
+
+Pieces not pruned: 4 (pruned: 0)
+Total dist time: 6.909 ms
+Average dist time: 1.727 ms
+Maximum dist time: 2.744 ms
+
+Total count time: 9.262 ms
+Average count time: 2.315 ms
+Maximum count time: 3.943 ms
+===== LEX INDEX 25 END =====
+===== LEX INDEX 10 START =====
+Deps time: 187.874 us
+Comp. miss time: 20.981 us
+
+Pieces not pruned: 4 (pruned: 0)
+Total dist time: 5.764 ms
+Average dist time: 1.441 ms
+Maximum dist time: 1.467 ms
+
+Total count time: 2.278 ms
+Average count time: 569.463 us
+Maximum count time: 609.875 us
+===== LEX INDEX 10 END =====
+===== LEX INDEX 16 START =====
+Deps time: 450.611 us
+Comp. miss time: 21.696 us
+
+Pieces not pruned: 4 (pruned: 0)
+Total dist time: 3.609 ms
+Average dist time: 902.236 us
+Maximum dist time: 932.932 us
+
+Total count time: 1.089 ms
+Average count time: 272.214 us
+Maximum count time: 297.308 us
+===== LEX INDEX 16 END =====
+===== LEX INDEX 20 START =====
+Deps time: 262.260 us
+Comp. miss time: 4.292 us
+
+Pieces not pruned: 2 (pruned: 0)
+Total dist time: 291.586 us
+Average dist time: 145.793 us
+Maximum dist time: 154.972 us
+
+Total count time: 106.096 us
+Average count time: 53.048 us
+Maximum count time: 55.313 us
+===== LEX INDEX 20 END =====
+===== LEX INDEX 26 START =====
+Deps time: 440.836 us
+Comp. miss time: 21.219 us
+
+Pieces not pruned: 4 (pruned: 0)
+Total dist time: 3.547 ms
+Average dist time: 886.858 us
+Maximum dist time: 895.262 us
+
+Total count time: 1.155 ms
+Average count time: 288.844 us
+Maximum count time: 294.447 us
+===== LEX INDEX 26 END =====
+total compulsory misses = 4016000
+total capacity misses = 7932082
+total misses = 11948082
+time elapsed: 336.327 ms
+/home/aduhtkjm/llvm/polybench/linear-algebra/blas/gesummv/gesummv.c
+===== LEX INDEX 7 START =====
+Deps time: 29.802 us
+Comp. miss time: 0.000 us
+
+===== LEX INDEX 8 START =====
+Deps time: 255.823 us
+Comp. miss time: 118.971 us
+
+Pieces not pruned: 2 (pruned: 0)
+Total dist time: 8.642 ms
+Average dist time: 4.321 ms
+Maximum dist time: 5.201 ms
+
+Total count time: 16.107 ms
+Average count time: 8.053 ms
+Maximum count time: 10.834 ms
+===== LEX INDEX 8 END =====
+===== LEX INDEX 9 START =====
+Deps time: 422.716 us
+Comp. miss time: 22.888 us
+
+Pieces not pruned: 4 (pruned: 0)
+Total dist time: 5.072 ms
+Average dist time: 1.268 ms
+Maximum dist time: 1.765 ms
+
+Total count time: 3.598 ms
+Average count time: 899.494 us
+Maximum count time: 1.437 ms
+===== LEX INDEX 9 END =====
+===== LEX INDEX 11 START =====
+Deps time: 28.133 us
+Comp. miss time: 0.000 us
+
+===== LEX INDEX 12 START =====
+Deps time: 552.177 us
+Comp. miss time: 33.140 us
+
+Pieces not pruned: 6 (pruned: 0)
+Total dist time: 8.626 ms
+Average dist time: 1.438 ms
+Maximum dist time: 1.781 ms
+
+Total count time: 1.687 ms
+Average count time: 281.175 us
+Maximum count time: 311.136 us
+===== LEX INDEX 12 END =====
+===== LEX INDEX 13 START =====
+Deps time: 403.166 us
+Comp. miss time: 19.073 us
+
+Pieces not pruned: 4 (pruned: 0)
+Total dist time: 6.685 ms
+Average dist time: 1.671 ms
+Maximum dist time: 2.132 ms
+
+Total count time: 4.072 ms
+Average count time: 1.018 ms
+Maximum count time: 1.114 ms
+===== LEX INDEX 13 END =====
+===== LEX INDEX 15 START =====
+Deps time: 245.810 us
+Comp. miss time: 4.053 us
+
+Pieces not pruned: 2 (pruned: 0)
+Total dist time: 1.823 ms
+Average dist time: 911.713 us
+Maximum dist time: 939.369 us
+
+Total count time: 721.693 us
+Average count time: 360.847 us
+Maximum count time: 392.437 us
+===== LEX INDEX 15 END =====
+===== LEX INDEX 16 START =====
+Deps time: 247.717 us
+Comp. miss time: 4.053 us
+
+Pieces not pruned: 2 (pruned: 0)
+Total dist time: 1.455 ms
+Average dist time: 727.654 us
+Maximum dist time: 836.611 us
+
+Total count time: 131.130 us
+Average count time: 65.565 us
+Maximum count time: 79.632 us
+===== LEX INDEX 16 END =====
+===== LEX INDEX 4 START =====
+Deps time: 33.855 us
+Comp. miss time: 0.000 us
+
+===== LEX INDEX 5 START =====
+Deps time: 33.379 us
+Comp. miss time: 52.691 us
+
+===== LEX INDEX 10 START =====
+Deps time: 675.440 us
+Comp. miss time: 20.504 us
+
+Pieces not pruned: 4 (pruned: 0)
+Total dist time: 4.927 ms
+Average dist time: 1.232 ms
+Maximum dist time: 1.303 ms
+
+Total count time: 24.796 us
+Average count time: 6.199 us
+Maximum count time: 6.199 us
+===== LEX INDEX 10 END =====
+===== LEX INDEX 14 START =====
+Deps time: 706.911 us
+Comp. miss time: 20.742 us
+
+Pieces not pruned: 4 (pruned: 0)
+Total dist time: 6.155 ms
+Average dist time: 1.539 ms
+Maximum dist time: 1.656 ms
+
+Total count time: 24.796 us
+Average count time: 6.199 us
+Maximum count time: 6.437 us
+===== LEX INDEX 14 END =====
+===== LEX INDEX 17 START =====
+Deps time: 399.351 us
+Comp. miss time: 4.768 us
+
+Pieces not pruned: 2 (pruned: 0)
+Total dist time: 1.240 ms
+Average dist time: 619.888 us
+Maximum dist time: 633.478 us
+
+Total count time: 10.252 us
+Average count time: 5.126 us
+Maximum count time: 5.484 us
+===== LEX INDEX 17 END =====
+total compulsory misses = 3383900
+total capacity misses = 0
+total misses = 3383900
+time elapsed: 77.348 ms
+/home/aduhtkjm/llvm/polybench/linear-algebra/blas/symm/symm.c
+===== LEX INDEX 7 START =====
+Deps time: 363.350 us
+Comp. miss time: 374.794 us
+
+Pieces not pruned: 4 (pruned: 0)
+Total dist time: 17.014 ms
+Average dist time: 4.254 ms
+Maximum dist time: 4.587 ms
+
+Total count time: 5.060 ms
+Average count time: 1.265 ms
+Maximum count time: 1.437 ms
+===== LEX INDEX 7 END =====
+===== LEX INDEX 8 START =====
+Deps time: 649.214 us
+Comp. miss time: 229.836 us
+
+Pieces not pruned: 3 (pruned: 0)
+Total dist time: 19.344 ms
+Average dist time: 6.448 ms
+Maximum dist time: 7.050 ms
+
+Total count time: 25.630 ms
+Average count time: 8.543 ms
+Maximum count time: 10.742 ms
+===== LEX INDEX 8 END =====
+===== LEX INDEX 9 START =====
+Deps time: 2.628 ms
+Comp. miss time: 75.340 us
+
+Pieces not pruned: 6 (pruned: 0)
+Total dist time: 104.757 ms
+Average dist time: 17.459 ms
+Maximum dist time: 24.719 ms
+
+Total count time: 444.225 ms
+Average count time: 74.038 ms
+Maximum count time: 194.052 ms
+===== LEX INDEX 9 END =====
+===== LEX INDEX 11 START =====
+Deps time: 2.113 ms
+Comp. miss time: 178.576 us
+
+Pieces not pruned: 12 (pruned: 0)
+Total dist time: 186.585 ms
+Average dist time: 15.549 ms
+Maximum dist time: 25.264 ms
+
+Total count time: 549.999 ms
+Average count time: 45.833 ms
+Maximum count time: 147.669 ms
+===== LEX INDEX 11 END =====
+===== LEX INDEX 12 START =====
+Deps time: 1.748 ms
+Comp. miss time: 85.115 us
+
+Pieces not pruned: 8 (pruned: 0)
+Total dist time: 36.746 ms
+Average dist time: 4.593 ms
+Maximum dist time: 4.902 ms
+
+Total count time: 3.831 ms
+Average count time: 478.834 us
+Maximum count time: 571.489 us
+===== LEX INDEX 12 END =====
+===== LEX INDEX 15 START =====
+Deps time: 98.705 us
+Comp. miss time: 0.000 us
+
+===== LEX INDEX 16 START =====
+Deps time: 233.173 us
+Comp. miss time: 89.645 us
+
+Pieces not pruned: 4 (pruned: 0)
+Total dist time: 12.731 ms
+Average dist time: 3.183 ms
+Maximum dist time: 3.245 ms
+
+Total count time: 5.527 ms
+Average count time: 1.382 ms
+Maximum count time: 1.534 ms
+===== LEX INDEX 16 END =====
+===== LEX INDEX 17 START =====
+Deps time: 178.576 us
+Comp. miss time: 82.731 us
+
+Pieces not pruned: 2 (pruned: 0)
+Total dist time: 7.537 ms
+Average dist time: 3.769 ms
+Maximum dist time: 3.965 ms
+
+Total count time: 6.489 ms
+Average count time: 3.245 ms
+Maximum count time: 3.301 ms
+===== LEX INDEX 17 END =====
+===== LEX INDEX 10 START =====
+Deps time: 5.919 ms
+Comp. miss time: 212.193 us
+
+Pieces not pruned: 12 (pruned: 0)
+Total dist time: 46.262 ms
+Average dist time: 3.855 ms
+Maximum dist time: 4.099 ms
+
+Total count time: 112.534 us
+Average count time: 9.378 us
+Maximum count time: 17.166 us
+===== LEX INDEX 10 END =====
+===== LEX INDEX 19 START =====
+Deps time: 274.420 us
+Comp. miss time: 23.365 us
+
+Pieces not pruned: 4 (pruned: 0)
+Total dist time: 9.922 ms
+Average dist time: 2.481 ms
+Maximum dist time: 2.583 ms
+
+Total count time: 1.134 ms
+Average count time: 283.599 us
+Maximum count time: 301.600 us
+===== LEX INDEX 19 END =====
+total compulsory misses = 2900500
+total capacity misses = 1141890664
+total misses = 1144791164
+time elapsed: 1.504 s
+/home/aduhtkjm/llvm/polybench/linear-algebra/blas/syrk/syrk.c
+===== LEX INDEX 5 START =====
+Deps time: 102.520 us
+Comp. miss time: 0.000 us
+
+===== LEX INDEX 9 START =====
+Deps time: 307.798 us
+Comp. miss time: 377.655 us
+
+Pieces not pruned: 4 (pruned: 0)
+Total dist time: 10.242 ms
+Average dist time: 2.560 ms
+Maximum dist time: 2.723 ms
+
+Total count time: 2.311 ms
+Average count time: 577.748 us
+Maximum count time: 681.639 us
+===== LEX INDEX 9 END =====
+===== LEX INDEX 10 START =====
+Deps time: 2.615 ms
+Comp. miss time: 100.374 us
+
+Pieces not pruned: 8 (pruned: 0)
+Total dist time: 62.752 ms
+Average dist time: 7.844 ms
+Maximum dist time: 17.883 ms
+
+Total count time: 235.696 ms
+Average count time: 29.462 ms
+Maximum count time: 144.414 ms
+===== LEX INDEX 10 END =====
+===== LEX INDEX 11 START =====
+Deps time: 2.057 ms
+Comp. miss time: 55.075 us
+
+Pieces not pruned: 6 (pruned: 0)
+Total dist time: 22.390 ms
+Average dist time: 3.732 ms
+Maximum dist time: 5.206 ms
+
+Total count time: 16.963 ms
+Average count time: 2.827 ms
+Maximum count time: 4.841 ms
+===== LEX INDEX 11 END =====
+===== LEX INDEX 6 START =====
+Deps time: 255.585 us
+Comp. miss time: 19.073 us
+
+Pieces not pruned: 4 (pruned: 0)
+Total dist time: 2.213 ms
+Average dist time: 553.310 us
+Maximum dist time: 593.185 us
+
+Total count time: 24.557 us
+Average count time: 6.139 us
+Maximum count time: 6.437 us
+===== LEX INDEX 6 END =====
+===== LEX INDEX 12 START =====
+Deps time: 4.496 ms
+Comp. miss time: 71.287 us
+
+Pieces not pruned: 8 (pruned: 0)
+Total dist time: 19.608 ms
+Average dist time: 2.451 ms
+Maximum dist time: 2.524 ms
+
+Total count time: 71.287 us
+Average count time: 8.911 us
+Maximum count time: 11.683 us
+===== LEX INDEX 12 END =====
+total compulsory misses = 1920600
+total capacity misses = 582770957
+total misses = 584691557
+time elapsed: 386.842 ms
+/home/aduhtkjm/llvm/polybench/linear-algebra/blas/syr2k/syr2k.c
+===== LEX INDEX 5 START =====
+Deps time: 69.141 us
+Comp. miss time: 0.000 us
+
+===== LEX INDEX 9 START =====
+Deps time: 1.698 ms
+Comp. miss time: 209.093 us
+
+Pieces not pruned: 8 (pruned: 0)
+Total dist time: 86.974 ms
+Average dist time: 10.872 ms
+Maximum dist time: 26.011 ms
+
+Total count time: 326.994 ms
+Average count time: 40.874 ms
+Maximum count time: 200.763 ms
+===== LEX INDEX 9 END =====
+===== LEX INDEX 10 START =====
+Deps time: 300.169 us
+Comp. miss time: 365.496 us
+
+Pieces not pruned: 4 (pruned: 0)
+Total dist time: 15.807 ms
+Average dist time: 3.952 ms
+Maximum dist time: 4.342 ms
+
+Total count time: 7.304 ms
+Average count time: 1.826 ms
+Maximum count time: 1.978 ms
+===== LEX INDEX 10 END =====
+===== LEX INDEX 11 START =====
+Deps time: 2.493 ms
+Comp. miss time: 100.374 us
+
+Pieces not pruned: 8 (pruned: 0)
+Total dist time: 90.554 ms
+Average dist time: 11.319 ms
+Maximum dist time: 25.422 ms
+
+Total count time: 332.715 ms
+Average count time: 41.589 ms
+Maximum count time: 201.158 ms
+===== LEX INDEX 11 END =====
+===== LEX INDEX 12 START =====
+Deps time: 861.645 us
+Comp. miss time: 386.000 us
+
+Pieces not pruned: 8 (pruned: 0)
+Total dist time: 32.251 ms
+Average dist time: 4.031 ms
+Maximum dist time: 4.691 ms
+
+Total count time: 7.072 ms
+Average count time: 884.056 us
+Maximum count time: 1.604 ms
+===== LEX INDEX 12 END =====
+===== LEX INDEX 13 START =====
+Deps time: 2.066 ms
+Comp. miss time: 56.744 us
+
+Pieces not pruned: 6 (pruned: 0)
+Total dist time: 36.486 ms
+Average dist time: 6.081 ms
+Maximum dist time: 8.655 ms
+
+Total count time: 35.764 ms
+Average count time: 5.961 ms
+Maximum count time: 10.879 ms
+===== LEX INDEX 13 END =====
+===== LEX INDEX 6 START =====
+Deps time: 241.280 us
+Comp. miss time: 18.597 us
+
+Pieces not pruned: 4 (pruned: 0)
+Total dist time: 2.529 ms
+Average dist time: 632.286 us
+Maximum dist time: 669.718 us
+
+Total count time: 24.080 us
+Average count time: 6.020 us
+Maximum count time: 7.153 us
+===== LEX INDEX 6 END =====
+===== LEX INDEX 14 START =====
+Deps time: 4.498 ms
+Comp. miss time: 73.195 us
+
+Pieces not pruned: 8 (pruned: 0)
+Total dist time: 28.872 ms
+Average dist time: 3.609 ms
+Maximum dist time: 3.753 ms
+
+Total count time: 75.102 us
+Average count time: 9.388 us
+Maximum count time: 12.398 us
+===== LEX INDEX 14 END =====
+total compulsory misses = 3120600
+total capacity misses = 1370479541
+total misses = 1373600141
+time elapsed: 1.022 s
+/home/aduhtkjm/llvm/polybench/medley/floyd-warshall/floyd-warshall.c
+===== LEX INDEX 4 START =====
+Deps time: 40.349 ms
+Comp. miss time: 1.151 ms
+
+Pieces not pruned: 18 (pruned: 0)
+Total dist time: 507.317 ms
+Average dist time: 28.184 ms
+Maximum dist time: 205.092 ms
+
+Total count time: 51.545 s
+Average count time: 2.864 s
+Maximum count time: 50.910 s
+===== LEX INDEX 4 END =====
+===== LEX INDEX 5 START =====
+Deps time: 69.262 ms
+Comp. miss time: 752.926 us
+
+Pieces not pruned: 27 (pruned: 0)
+Total dist time: 142.322 ms
+Average dist time: 5.271 ms
+Maximum dist time: 42.199 ms
+
+Total count time: 116.807 ms
+Average count time: 4.326 ms
+Maximum count time: 65.422 ms
+===== LEX INDEX 5 END =====
+===== LEX INDEX 6 START =====
+Deps time: 88.885 ms
+Comp. miss time: 1.656 ms
+
+Pieces not pruned: 32 (pruned: 0)
+Total dist time: 286.728 ms
+Average dist time: 8.960 ms
+Maximum dist time: 37.453 ms
+
+Total count time: 52.042 s
+Average count time: 1.626 s
+Maximum count time: 51.770 s
+===== LEX INDEX 6 END =====
+===== LEX INDEX 7 START =====
+Deps time: 49.764 ms
+Comp. miss time: 503.063 us
+
+Pieces not pruned: 22 (pruned: 0)
+Total dist time: 128.284 ms
+Average dist time: 5.831 ms
+Maximum dist time: 38.139 ms
+
+Total count time: 13.670 ms
+Average count time: 621.373 us
+Maximum count time: 5.690 ms
+===== LEX INDEX 7 END =====
+===== LEX INDEX 8 START =====
+Deps time: 80.386 ms
+Comp. miss time: 587.463 us
+
+Pieces not pruned: 26 (pruned: 0)
+Total dist time: 95.208 ms
+Average dist time: 3.662 ms
+Maximum dist time: 13.479 ms
+
+Total count time: 11.613 ms
+Average count time: 446.668 us
+Maximum count time: 1.077 ms
+===== LEX INDEX 8 END =====
+===== LEX INDEX 9 START =====
+Deps time: 125.394 ms
+Comp. miss time: 1.803 ms
+
+Pieces not pruned: 35 (pruned: 0)
+Total dist time: 180.814 ms
+Average dist time: 5.166 ms
+Maximum dist time: 15.881 ms
+
+Total count time: 20.147 ms
+Average count time: 575.617 us
+Maximum count time: 1.994 ms
+===== LEX INDEX 9 END =====
+===== LEX INDEX 10 START =====
+Deps time: 96.463 ms
+Comp. miss time: 505.209 us
+
+Pieces not pruned: 22 (pruned: 0)
+Total dist time: 154.209 ms
+Average dist time: 7.009 ms
+Maximum dist time: 46.125 ms
+
+Total count time: 13.637 ms
+Average count time: 619.877 us
+Maximum count time: 5.653 ms
+===== LEX INDEX 10 END =====
+total compulsory misses = 7840000
+total capacity misses = 21943122626
+total misses = 21950962626
+time elapsed: 105.844 s
+/home/aduhtkjm/llvm/polybench/medley/deriche/deriche.c
+===== LEX INDEX 7 START =====
+Deps time: 48.161 us
+Comp. miss time: 0.000 us
+
+===== LEX INDEX 12 START =====
+Deps time: 207.663 us
+Comp. miss time: 22.411 us
+
+Pieces not pruned: 4 (pruned: 0)
+Total dist time: 2.962 ms
+Average dist time: 740.588 us
+Maximum dist time: 807.762 us
+
+Total count time: 502.586 us
+Average count time: 125.647 us
+Maximum count time: 133.753 us
+===== LEX INDEX 12 END =====
+===== LEX INDEX 16 START =====
+Deps time: 201.225 us
+Comp. miss time: 21.935 us
+
+Pieces not pruned: 4 (pruned: 0)
+Total dist time: 3.316 ms
+Average dist time: 829.041 us
+Maximum dist time: 874.996 us
+
+Total count time: 506.401 us
+Average count time: 126.600 us
+Maximum count time: 144.958 us
+===== LEX INDEX 16 END =====
+===== LEX INDEX 31 START =====
+Deps time: 447.273 us
+Comp. miss time: 21.935 us
+
+Pieces not pruned: 4 (pruned: 0)
+Total dist time: 6.033 ms
+Average dist time: 1.508 ms
+Maximum dist time: 2.328 ms
+
+Total count time: 15.359 ms
+Average count time: 3.840 ms
+Maximum count time: 7.047 ms
+===== LEX INDEX 31 END =====
+===== LEX INDEX 35 START =====
+Deps time: 223.875 us
+Comp. miss time: 21.935 us
+
+Pieces not pruned: 4 (pruned: 0)
+Total dist time: 2.517 ms
+Average dist time: 629.246 us
+Maximum dist time: 671.148 us
+
+Total count time: 490.189 us
+Average count time: 122.547 us
+Maximum count time: 139.236 us
+===== LEX INDEX 35 END =====
+===== LEX INDEX 39 START =====
+Deps time: 443.459 us
+Comp. miss time: 21.696 us
+
+Pieces not pruned: 4 (pruned: 0)
+Total dist time: 7.009 ms
+Average dist time: 1.752 ms
+Maximum dist time: 2.182 ms
+
+Total count time: 25.942 ms
+Average count time: 6.486 ms
+Maximum count time: 8.561 ms
+===== LEX INDEX 39 END =====
+===== LEX INDEX 40 START =====
+Deps time: 460.625 us
+Comp. miss time: 37.193 us
+
+Pieces not pruned: 4 (pruned: 0)
+Total dist time: 5.116 ms
+Average dist time: 1.279 ms
+Maximum dist time: 1.936 ms
+
+Total count time: 16.504 ms
+Average count time: 4.126 ms
+Maximum count time: 7.638 ms
+===== LEX INDEX 40 END =====
+===== LEX INDEX 47 START =====
+Deps time: 190.258 us
+Comp. miss time: 20.742 us
+
+Pieces not pruned: 4 (pruned: 0)
+Total dist time: 6.516 ms
+Average dist time: 1.629 ms
+Maximum dist time: 1.952 ms
+
+Total count time: 101.535 ms
+Average count time: 25.384 ms
+Maximum count time: 80.500 ms
+===== LEX INDEX 47 END =====
+===== LEX INDEX 52 START =====
+Deps time: 453.949 us
+Comp. miss time: 21.458 us
+
+Pieces not pruned: 4 (pruned: 0)
+Total dist time: 2.927 ms
+Average dist time: 731.707 us
+Maximum dist time: 746.727 us
+
+Total count time: 541.925 us
+Average count time: 135.481 us
+Maximum count time: 159.979 us
+===== LEX INDEX 52 END =====
+===== LEX INDEX 56 START =====
+Deps time: 1.358 ms
+Comp. miss time: 21.458 us
+
+Pieces not pruned: 4 (pruned: 0)
+Total dist time: 3.317 ms
+Average dist time: 829.339 us
+Maximum dist time: 842.094 us
+
+Total count time: 497.341 us
+Average count time: 124.335 us
+Maximum count time: 134.230 us
+===== LEX INDEX 56 END =====
+===== LEX INDEX 71 START =====
+Deps time: 805.378 us
+Comp. miss time: 22.650 us
+
+Pieces not pruned: 4 (pruned: 0)
+Total dist time: 6.240 ms
+Average dist time: 1.560 ms
+Maximum dist time: 2.403 ms
+
+Total count time: 15.687 ms
+Average count time: 3.922 ms
+Maximum count time: 7.401 ms
+===== LEX INDEX 71 END =====
+===== LEX INDEX 75 START =====
+Deps time: 1.724 ms
+Comp. miss time: 50.068 us
+
+Pieces not pruned: 9 (pruned: 0)
+Total dist time: 4.091 ms
+Average dist time: 454.585 us
+Maximum dist time: 682.116 us
+
+Total count time: 1.035 ms
+Average count time: 114.997 us
+Maximum count time: 147.581 us
+===== LEX INDEX 75 END =====
+===== LEX INDEX 79 START =====
+Deps time: 2.066 ms
+Comp. miss time: 24.557 us
+
+Pieces not pruned: 4 (pruned: 0)
+Total dist time: 7.061 ms
+Average dist time: 1.765 ms
+Maximum dist time: 2.208 ms
+
+Total count time: 169.559 ms
+Average count time: 42.390 ms
+Maximum count time: 143.894 ms
+===== LEX INDEX 79 END =====
+===== LEX INDEX 80 START =====
+Deps time: 3.021 ms
+Comp. miss time: 53.167 us
+
+Pieces not pruned: 9 (pruned: 0)
+Total dist time: -751970.530 us
+Average dist time: -83552.281 us
+Maximum dist time: 1.857 ms
+
+Total count time: 163.285 ms
+Average count time: 18.143 ms
+Maximum count time: 117.836 ms
+===== LEX INDEX 80 END =====
+===== LEX INDEX 11 START =====
+Deps time: 71.287 us
+Comp. miss time: 0.000 us
+
+===== LEX INDEX 28 START =====
+Deps time: 53.883 us
+Comp. miss time: 110.388 us
+
+===== LEX INDEX 41 START =====
+Deps time: 28.610 us
+Comp. miss time: 91.791 us
+
+===== LEX INDEX 51 START =====
+Deps time: 836.849 us
+Comp. miss time: 21.458 us
+
+Pieces not pruned: 4 (pruned: 0)
+Total dist time: 8.807 ms
+Average dist time: 2.202 ms
+Maximum dist time: 2.595 ms
+
+Total count time: 107.848 ms
+Average count time: 26.962 ms
+Maximum count time: 81.824 ms
+===== LEX INDEX 51 END =====
+===== LEX INDEX 68 START =====
+Deps time: 1.013 ms
+Comp. miss time: 32.187 us
+
+Pieces not pruned: 6 (pruned: 0)
+Total dist time: 8.761 ms
+Average dist time: 1.460 ms
+Maximum dist time: 2.218 ms
+
+Total count time: 95.724 ms
+Average count time: 15.954 ms
+Maximum count time: 68.111 ms
+===== LEX INDEX 68 END =====
+===== LEX INDEX 81 START =====
+Deps time: 1.453 ms
+Comp. miss time: 39.101 us
+
+Pieces not pruned: 6 (pruned: 0)
+Total dist time: 11.075 ms
+Average dist time: 1.846 ms
+Maximum dist time: 2.503 ms
+
+Total count time: 171.393 ms
+Average count time: 28.566 ms
+Maximum count time: 140.782 ms
+===== LEX INDEX 81 END =====
+total compulsory misses = 35389440
+total capacity misses = 88463312
+total misses = 123852752
+time elapsed: 241.560 ms
+/home/aduhtkjm/llvm/polybench/stencils/seidel-2d/seidel-2d.c
+===== LEX INDEX 4 START =====
+Deps time: 23.776 ms
+Comp. miss time: 343.084 us
+
+Pieces not pruned: 16 (pruned: 0)
+Total dist time: 102.520 ms
+Average dist time: 6.407 ms
+Maximum dist time: 20.408 ms
+
+Total count time: 1.625 s
+Average count time: 101.544 ms
+Maximum count time: 1.420 s
+===== LEX INDEX 4 END =====
+===== LEX INDEX 5 START =====
+Deps time: 32.888 ms
+Comp. miss time: 536.442 us
+
+Pieces not pruned: 20 (pruned: 0)
+Total dist time: 128.425 ms
+Average dist time: 6.421 ms
+Maximum dist time: 21.984 ms
+
+Total count time: 1.675 s
+Average count time: 83.763 ms
+Maximum count time: 1.445 s
+===== LEX INDEX 5 END =====
+===== LEX INDEX 6 START =====
+Deps time: 39.723 ms
+Comp. miss time: 852.823 us
+
+Pieces not pruned: 24 (pruned: 0)
+Total dist time: 297.253 ms
+Average dist time: 12.386 ms
+Maximum dist time: 40.801 ms
+
+Total count time: 7.524 s
+Average count time: 313.481 ms
+Maximum count time: 2.520 s
+===== LEX INDEX 6 END =====
+===== LEX INDEX 7 START =====
+Deps time: 25.854 ms
+Comp. miss time: 604.630 us
+
+Pieces not pruned: 22 (pruned: 0)
+Total dist time: 133.312 ms
+Average dist time: 6.060 ms
+Maximum dist time: 24.836 ms
+
+Total count time: 1.653 s
+Average count time: 75.142 ms
+Maximum count time: 1.458 s
+===== LEX INDEX 7 END =====
+===== LEX INDEX 8 START =====
+Deps time: 28.248 ms
+Comp. miss time: 950.336 us
+
+Pieces not pruned: 28 (pruned: 0)
+Total dist time: 187.067 ms
+Average dist time: 6.681 ms
+Maximum dist time: 26.638 ms
+
+Total count time: 1.781 s
+Average count time: 63.619 ms
+Maximum count time: 1.489 s
+===== LEX INDEX 8 END =====
+===== LEX INDEX 9 START =====
+Deps time: 27.983 ms
+Comp. miss time: 1.117 ms
+
+Pieces not pruned: 32 (pruned: 0)
+Total dist time: 404.381 ms
+Average dist time: 12.637 ms
+Maximum dist time: 46.314 ms
+
+Total count time: 7.426 s
+Average count time: 232.057 ms
+Maximum count time: 2.502 s
+===== LEX INDEX 9 END =====
+===== LEX INDEX 10 START =====
+Deps time: 14.466 ms
+Comp. miss time: 811.338 us
+
+Pieces not pruned: 22 (pruned: 0)
+Total dist time: 279.976 ms
+Average dist time: 12.726 ms
+Maximum dist time: 49.448 ms
+
+Total count time: 7.738 s
+Average count time: 351.745 ms
+Maximum count time: 4.058 s
+===== LEX INDEX 10 END =====
+===== LEX INDEX 11 START =====
+Deps time: 15.842 ms
+Comp. miss time: 1.381 ms
+
+Pieces not pruned: 30 (pruned: 0)
+Total dist time: 342.477 ms
+Average dist time: 11.416 ms
+Maximum dist time: 51.523 ms
+
+Total count time: 7.256 s
+Average count time: 241.854 ms
+Maximum count time: 4.162 s
+===== LEX INDEX 11 END =====
+===== LEX INDEX 12 START =====
+Deps time: 12.483 ms
+Comp. miss time: 989.676 us
+
+Pieces not pruned: 16 (pruned: 0)
+Total dist time: 248.871 ms
+Average dist time: 15.554 ms
+Maximum dist time: 24.192 ms
+
+Total count time: 23.409 s
+Average count time: 1.463 s
+Maximum count time: 6.103 s
+===== LEX INDEX 12 END =====
+===== LEX INDEX 13 START =====
+Deps time: 27.904 ms
+Comp. miss time: 697.613 us
+
+Pieces not pruned: 22 (pruned: 0)
+Total dist time: 123.223 ms
+Average dist time: 5.601 ms
+Maximum dist time: 6.148 ms
+
+Total count time: 24.747 ms
+Average count time: 1.125 ms
+Maximum count time: 1.297 ms
+===== LEX INDEX 13 END =====
+total compulsory misses = 4000000
+total capacity misses = 1996000000
+total misses = 2000000000
+time elapsed: 62.967 s
+/home/aduhtkjm/llvm/polybench/stencils/jacobi-2d/jacobi-2d.c
+===== LEX INDEX 4 START =====
+Deps time: 14.670 ms
+Comp. miss time: 553.846 us
+
+Pieces not pruned: 20 (pruned: 0)
+Total dist time: 75.153 ms
+Average dist time: 3.758 ms
+Maximum dist time: 8.326 ms
+
+Total count time: 131.017 ms
+Average count time: 6.551 ms
+Maximum count time: 66.819 ms
+===== LEX INDEX 4 END =====
+===== LEX INDEX 5 START =====
+Deps time: 5.315 ms
+Comp. miss time: 249.147 us
+
+Pieces not pruned: 8 (pruned: 0)
+Total dist time: 62.463 ms
+Average dist time: 7.808 ms
+Maximum dist time: 25.499 ms
+
+Total count time: 670.755 ms
+Average count time: 83.844 ms
+Maximum count time: 448.017 ms
+===== LEX INDEX 5 END =====
+===== LEX INDEX 6 START =====
+Deps time: 11.414 ms
+Comp. miss time: 825.405 us
+
+Pieces not pruned: 19 (pruned: 0)
+Total dist time: 177.712 ms
+Average dist time: 9.353 ms
+Maximum dist time: 45.455 ms
+
+Total count time: 1.047 s
+Average count time: 55.106 ms
+Maximum count time: 232.684 ms
+===== LEX INDEX 6 END =====
+===== LEX INDEX 7 START =====
+Deps time: 5.693 ms
+Comp. miss time: 1.052 ms
+
+Pieces not pruned: 11 (pruned: 0)
+Total dist time: 84.781 ms
+Average dist time: 7.707 ms
+Maximum dist time: 9.831 ms
+
+Total count time: 1.004 s
+Average count time: 91.245 ms
+Maximum count time: 152.058 ms
+===== LEX INDEX 7 END =====
+===== LEX INDEX 8 START =====
+Deps time: 8.133 ms
+Comp. miss time: 466.108 us
+
+Pieces not pruned: 11 (pruned: 0)
+Total dist time: 171.124 ms
+Average dist time: 15.557 ms
+Maximum dist time: 94.553 ms
+
+Total count time: 1.338 s
+Average count time: 121.675 ms
+Maximum count time: 947.392 ms
+===== LEX INDEX 8 END =====
+===== LEX INDEX 12 START =====
+Deps time: 14.750 ms
+Comp. miss time: 342.131 us
+
+Pieces not pruned: 21 (pruned: 0)
+Total dist time: 61.559 ms
+Average dist time: 2.931 ms
+Maximum dist time: 3.585 ms
+
+Total count time: 120.745 ms
+Average count time: 5.750 ms
+Maximum count time: 27.511 ms
+===== LEX INDEX 12 END =====
+===== LEX INDEX 13 START =====
+Deps time: 7.501 ms
+Comp. miss time: 262.260 us
+
+Pieces not pruned: 8 (pruned: 0)
+Total dist time: 67.767 ms
+Average dist time: 8.471 ms
+Maximum dist time: 26.918 ms
+
+Total count time: 871.062 ms
+Average count time: 108.883 ms
+Maximum count time: 586.432 ms
+===== LEX INDEX 13 END =====
+===== LEX INDEX 14 START =====
+Deps time: 11.990 ms
+Comp. miss time: 732.183 us
+
+Pieces not pruned: 20 (pruned: 0)
+Total dist time: 105.773 ms
+Average dist time: 5.289 ms
+Maximum dist time: 10.122 ms
+
+Total count time: 749.906 ms
+Average count time: 37.495 ms
+Maximum count time: 224.645 ms
+===== LEX INDEX 14 END =====
+===== LEX INDEX 15 START =====
+Deps time: 8.258 ms
+Comp. miss time: 322.819 us
+
+Pieces not pruned: 14 (pruned: 0)
+Total dist time: 99.597 ms
+Average dist time: 7.114 ms
+Maximum dist time: 10.429 ms
+
+Total count time: 1.366 s
+Average count time: 97.563 ms
+Maximum count time: 179.816 ms
+===== LEX INDEX 15 END =====
+===== LEX INDEX 16 START =====
+Deps time: 10.438 ms
+Comp. miss time: 425.339 us
+
+Pieces not pruned: 11 (pruned: 0)
+Total dist time: 181.671 ms
+Average dist time: 16.516 ms
+Maximum dist time: 99.944 ms
+
+Total count time: 1.826 s
+Average count time: 165.999 ms
+Maximum count time: 1.364 s
+===== LEX INDEX 16 END =====
+===== LEX INDEX 9 START =====
+Deps time: 4.642 ms
+Comp. miss time: 782.967 us
+
+Pieces not pruned: 9 (pruned: 0)
+Total dist time: 73.359 ms
+Average dist time: 8.151 ms
+Maximum dist time: 9.683 ms
+
+Total count time: 906.728 ms
+Average count time: 100.748 ms
+Maximum count time: 202.374 ms
+===== LEX INDEX 9 END =====
+===== LEX INDEX 17 START =====
+Deps time: 32.340 ms
+Comp. miss time: 559.568 us
+
+Pieces not pruned: 27 (pruned: 0)
+Total dist time: 216.410 ms
+Average dist time: 8.015 ms
+Maximum dist time: 10.258 ms
+
+Total count time: 2.405 s
+Average count time: 89.088 ms
+Maximum count time: 198.633 ms
+===== LEX INDEX 17 END =====
+total compulsory misses = 3379992
+total capacity misses = 3371420008
+total misses = 3374800000
+time elapsed: 13.997 s
+/home/aduhtkjm/llvm/polybench/stencils/adi/adi.c
+===== LEX INDEX 5 START =====
+Deps time: 977.993 us
+Comp. miss time: 56.744 us
+
+Pieces not pruned: 6 (pruned: 0)
+Total dist time: 16.079 ms
+Average dist time: 2.680 ms
+Maximum dist time: 3.503 ms
+
+Total count time: 728.607 us
+Average count time: 121.435 us
+Maximum count time: 129.700 us
+===== LEX INDEX 5 END =====
+===== LEX INDEX 8 START =====
+Deps time: 17.139 ms
+Comp. miss time: 303.507 us
+
+Pieces not pruned: 16 (pruned: 0)
+Total dist time: 95.872 ms
+Average dist time: 5.992 ms
+Maximum dist time: 9.679 ms
+
+Total count time: 37.106 ms
+Average count time: 2.319 ms
+Maximum count time: 8.619 ms
+===== LEX INDEX 8 END =====
+===== LEX INDEX 10 START =====
+Deps time: 9.911 ms
+Comp. miss time: 350.714 us
+
+Pieces not pruned: 12 (pruned: 0)
+Total dist time: 173.868 ms
+Average dist time: 14.489 ms
+Maximum dist time: 29.269 ms
+
+Total count time: 1.092 s
+Average count time: 90.997 ms
+Maximum count time: 398.907 ms
+===== LEX INDEX 10 END =====
+===== LEX INDEX 11 START =====
+Deps time: 6.588 ms
+Comp. miss time: 509.739 us
+
+Pieces not pruned: 16 (pruned: 0)
+Total dist time: 208.412 ms
+Average dist time: 13.026 ms
+Maximum dist time: 24.349 ms
+
+Total count time: 939.402 ms
+Average count time: 58.713 ms
+Maximum count time: 196.075 ms
+===== LEX INDEX 11 END =====
+===== LEX INDEX 12 START =====
+Deps time: 4.307 ms
+Comp. miss time: 939.608 us
+
+Pieces not pruned: 10 (pruned: 0)
+Total dist time: 126.853 ms
+Average dist time: 12.685 ms
+Maximum dist time: 15.509 ms
+
+Total count time: 49.866 s
+Average count time: 4.987 s
+Maximum count time: 48.266 s
+===== LEX INDEX 12 END =====
+===== LEX INDEX 13 START =====
+Deps time: 11.984 ms
+Comp. miss time: 323.057 us
+
+Pieces not pruned: 16 (pruned: 0)
+Total dist time: 112.224 ms
+Average dist time: 7.014 ms
+Maximum dist time: 11.688 ms
+
+Total count time: 34.358 ms
+Average count time: 2.147 ms
+Maximum count time: 6.002 ms
+===== LEX INDEX 13 END =====
+===== LEX INDEX 14 START =====
+Deps time: 24.814 ms
+Comp. miss time: 263.453 us
+
+Pieces not pruned: 18 (pruned: 0)
+Total dist time: 111.698 ms
+Average dist time: 6.205 ms
+Maximum dist time: 8.139 ms
+
+Total count time: 29.693 ms
+Average count time: 1.650 ms
+Maximum count time: 1.815 ms
+===== LEX INDEX 14 END =====
+===== LEX INDEX 18 START =====
+Deps time: 30.590 ms
+Comp. miss time: 442.028 us
+
+Pieces not pruned: 18 (pruned: 0)
+Total dist time: 115.243 ms
+Average dist time: 6.402 ms
+Maximum dist time: 8.836 ms
+
+Total count time: 96.126 ms
+Average count time: 5.340 ms
+Maximum count time: 13.160 ms
+===== LEX INDEX 18 END =====
+===== LEX INDEX 19 START =====
+Deps time: 9.071 ms
+Comp. miss time: 231.504 us
+
+Pieces not pruned: 16 (pruned: 0)
+Total dist time: 99.517 ms
+Average dist time: 6.220 ms
+Maximum dist time: 9.592 ms
+
+Total count time: 4.102 ms
+Average count time: 256.374 us
+Maximum count time: 598.192 us
+===== LEX INDEX 19 END =====
+===== LEX INDEX 20 START =====
+Deps time: 14.778 ms
+Comp. miss time: 448.704 us
+
+Pieces not pruned: 18 (pruned: 0)
+Total dist time: 124.000 ms
+Average dist time: 6.889 ms
+Maximum dist time: 9.786 ms
+
+Total count time: 107.977 ms
+Average count time: 5.999 ms
+Maximum count time: 16.137 ms
+===== LEX INDEX 20 END =====
+===== LEX INDEX 25 START =====
+Deps time: 1.681 ms
+Comp. miss time: 52.214 us
+
+Pieces not pruned: 6 (pruned: 0)
+Total dist time: 20.748 ms
+Average dist time: 3.458 ms
+Maximum dist time: 4.528 ms
+
+Total count time: 746.250 us
+Average count time: 124.375 us
+Maximum count time: 143.051 us
+===== LEX INDEX 25 END =====
+===== LEX INDEX 28 START =====
+Deps time: 75.530 ms
+Comp. miss time: 424.147 us
+
+Pieces not pruned: 24 (pruned: 0)
+Total dist time: 150.652 ms
+Average dist time: 6.277 ms
+Maximum dist time: 8.459 ms
+
+Total count time: 40.304 ms
+Average count time: 1.679 ms
+Maximum count time: 2.271 ms
+===== LEX INDEX 28 END =====
+===== LEX INDEX 30 START =====
+Deps time: 32.549 ms
+Comp. miss time: 348.330 us
+
+Pieces not pruned: 24 (pruned: 0)
+Total dist time: 247.051 ms
+Average dist time: 10.294 ms
+Maximum dist time: 13.549 ms
+
+Total count time: 1.033 s
+Average count time: 43.054 ms
+Maximum count time: 107.675 ms
+===== LEX INDEX 30 END =====
+===== LEX INDEX 31 START =====
+Deps time: 14.381 ms
+Comp. miss time: 420.570 us
+
+Pieces not pruned: 18 (pruned: 0)
+Total dist time: 175.138 ms
+Average dist time: 9.730 ms
+Maximum dist time: 13.860 ms
+
+Total count time: 606.363 ms
+Average count time: 33.687 ms
+Maximum count time: 54.492 ms
+===== LEX INDEX 31 END =====
+===== LEX INDEX 32 START =====
+Deps time: 15.110 ms
+Comp. miss time: 275.850 us
+
+Pieces not pruned: 18 (pruned: 0)
+Total dist time: 214.579 ms
+Average dist time: 11.921 ms
+Maximum dist time: 16.903 ms
+
+Total count time: 58.166 s
+Average count time: 3.231 s
+Maximum count time: 55.666 s
+===== LEX INDEX 32 END =====
+===== LEX INDEX 33 START =====
+Deps time: 43.970 ms
+Comp. miss time: 398.874 us
+
+Pieces not pruned: 24 (pruned: 0)
+Total dist time: 170.802 ms
+Average dist time: 7.117 ms
+Maximum dist time: 9.798 ms
+
+Total count time: 37.949 ms
+Average count time: 1.581 ms
+Maximum count time: 1.740 ms
+===== LEX INDEX 33 END =====
+===== LEX INDEX 34 START =====
+Deps time: 92.242 ms
+Comp. miss time: 426.054 us
+
+Pieces not pruned: 24 (pruned: 0)
+Total dist time: 176.658 ms
+Average dist time: 7.361 ms
+Maximum dist time: 9.603 ms
+
+Total count time: 38.394 ms
+Average count time: 1.600 ms
+Maximum count time: 1.935 ms
+===== LEX INDEX 34 END =====
+===== LEX INDEX 38 START =====
+Deps time: 97.346 ms
+Comp. miss time: 604.153 us
+
+Pieces not pruned: 24 (pruned: 0)
+Total dist time: 182.805 ms
+Average dist time: 7.617 ms
+Maximum dist time: 9.963 ms
+
+Total count time: 157.555 ms
+Average count time: 6.565 ms
+Maximum count time: 12.676 ms
+===== LEX INDEX 38 END =====
+===== LEX INDEX 39 START =====
+Deps time: 28.581 ms
+Comp. miss time: 393.867 us
+
+Pieces not pruned: 24 (pruned: 0)
+Total dist time: 151.684 ms
+Average dist time: 6.320 ms
+Maximum dist time: 8.174 ms
+
+Total count time: 4.978 ms
+Average count time: 207.414 us
+Maximum count time: 233.889 us
+===== LEX INDEX 39 END =====
+===== LEX INDEX 40 START =====
+Deps time: 50.788 ms
+Comp. miss time: 625.610 us
+
+Pieces not pruned: 24 (pruned: 0)
+Total dist time: 197.951 ms
+Average dist time: 8.248 ms
+Maximum dist time: 11.063 ms
+
+Total count time: 179.122 ms
+Average count time: 7.463 ms
+Maximum count time: 15.024 ms
+===== LEX INDEX 40 END =====
+===== LEX INDEX 3 START =====
+Deps time: 545.263 us
+Comp. miss time: 89.645 us
+
+Pieces not pruned: 2 (pruned: 0)
+Total dist time: 17.024 ms
+Average dist time: 8.512 ms
+Maximum dist time: 9.353 ms
+
+Total count time: 416.639 ms
+Average count time: 208.320 ms
+Maximum count time: 238.772 ms
+===== LEX INDEX 3 END =====
+===== LEX INDEX 4 START =====
+Deps time: 1.444 ms
+Comp. miss time: 93.222 us
+
+Pieces not pruned: 2 (pruned: 0)
+Total dist time: 15.203 ms
+Average dist time: 7.601 ms
+Maximum dist time: 8.893 ms
+
+Total count time: 2.476 s
+Average count time: 1.238 s
+Maximum count time: 2.405 s
+===== LEX INDEX 4 END =====
+===== LEX INDEX 6 START =====
+Deps time: 791.788 us
+Comp. miss time: 97.036 us
+
+Pieces not pruned: 2 (pruned: 0)
+Total dist time: 16.555 ms
+Average dist time: 8.278 ms
+Maximum dist time: 9.632 ms
+
+Total count time: 2.485 s
+Average count time: 1.242 s
+Maximum count time: 2.409 s
+===== LEX INDEX 6 END =====
+===== LEX INDEX 9 START =====
+Deps time: 12.660 ms
+Comp. miss time: 735.998 us
+
+Pieces not pruned: 8 (pruned: 0)
+Total dist time: 93.261 ms
+Average dist time: 11.658 ms
+Maximum dist time: 13.949 ms
+
+Total count time: 59.382 s
+Average count time: 7.423 s
+Maximum count time: 51.600 s
+===== LEX INDEX 9 END =====
+===== LEX INDEX 15 START =====
+Deps time: 6.896 ms
+Comp. miss time: 725.508 us
+
+Pieces not pruned: 8 (pruned: 0)
+Total dist time: 111.165 ms
+Average dist time: 13.896 ms
+Maximum dist time: 16.231 ms
+
+Total count time: 50.672 s
+Average count time: 6.334 s
+Maximum count time: 42.872 s
+===== LEX INDEX 15 END =====
+===== LEX INDEX 16 START =====
+Deps time: 554.800 us
+Comp. miss time: 85.115 us
+
+Pieces not pruned: 2 (pruned: 0)
+Total dist time: 18.374 ms
+Average dist time: 9.187 ms
+Maximum dist time: 9.607 ms
+
+Total count time: 202.583 ms
+Average count time: 101.291 ms
+Maximum count time: 129.488 ms
+===== LEX INDEX 16 END =====
+===== LEX INDEX 21 START =====
+Deps time: 3.802 ms
+Comp. miss time: 963.926 us
+
+Pieces not pruned: 10 (pruned: 0)
+Total dist time: 162.976 ms
+Average dist time: 16.298 ms
+Maximum dist time: 19.227 ms
+
+Total count time: 48.892 s
+Average count time: 4.889 s
+Maximum count time: 45.846 s
+===== LEX INDEX 21 END =====
+===== LEX INDEX 23 START =====
+Deps time: 999.212 us
+Comp. miss time: 32.187 us
+
+Pieces not pruned: 6 (pruned: 0)
+Total dist time: 53.409 ms
+Average dist time: 8.902 ms
+Maximum dist time: 10.730 ms
+
+Total count time: 1.090 s
+Average count time: 181.748 ms
+Maximum count time: 219.772 ms
+===== LEX INDEX 23 END =====
+===== LEX INDEX 24 START =====
+Deps time: 4.423 ms
+Comp. miss time: 36.240 us
+
+Pieces not pruned: 6 (pruned: 0)
+Total dist time: 48.071 ms
+Average dist time: 8.012 ms
+Maximum dist time: 10.350 ms
+
+Total count time: 3.502 s
+Average count time: 583.722 ms
+Maximum count time: 2.943 s
+===== LEX INDEX 24 END =====
+===== LEX INDEX 26 START =====
+Deps time: 2.080 ms
+Comp. miss time: 36.240 us
+
+Pieces not pruned: 6 (pruned: 0)
+Total dist time: 52.192 ms
+Average dist time: 8.699 ms
+Maximum dist time: 11.079 ms
+
+Total count time: 3.581 s
+Average count time: 596.824 ms
+Maximum count time: 2.991 s
+===== LEX INDEX 26 END =====
+===== LEX INDEX 29 START =====
+Deps time: 48.759 ms
+Comp. miss time: 385.523 us
+
+Pieces not pruned: 24 (pruned: 0)
+Total dist time: 288.970 ms
+Average dist time: 12.040 ms
+Maximum dist time: 15.826 ms
+
+Total count time: 69.699 s
+Average count time: 2.904 s
+Maximum count time: 58.026 s
+===== LEX INDEX 29 END =====
+===== LEX INDEX 35 START =====
+Deps time: 28.387 ms
+Comp. miss time: 408.173 us
+
+Pieces not pruned: 24 (pruned: 0)
+Total dist time: 346.736 ms
+Average dist time: 14.447 ms
+Maximum dist time: 19.340 ms
+
+Total count time: 65.705 s
+Average count time: 2.738 s
+Maximum count time: 54.112 s
+===== LEX INDEX 35 END =====
+===== LEX INDEX 36 START =====
+Deps time: 1.049 ms
+Comp. miss time: 34.094 us
+
+Pieces not pruned: 6 (pruned: 0)
+Total dist time: 58.041 ms
+Average dist time: 9.674 ms
+Maximum dist time: 11.271 ms
+
+Total count time: 494.160 ms
+Average count time: 82.360 ms
+Maximum count time: 105.268 ms
+===== LEX INDEX 36 END =====
+===== LEX INDEX 41 START =====
+Deps time: 14.082 ms
+Comp. miss time: 443.935 us
+
+Pieces not pruned: 18 (pruned: 0)
+Total dist time: 278.544 ms
+Average dist time: 15.475 ms
+Maximum dist time: 21.335 ms
+
+Total count time: 55.454 s
+Average count time: 3.081 s
+Maximum count time: 52.190 s
+===== LEX INDEX 41 END =====
+total compulsory misses = 3990004
+total capacity misses = 3968236791
+total misses = 3972226795
+time elapsed: 481.816 s
+/home/aduhtkjm/llvm/polybench/stencils/fdtd-2d/fdtd-2d.c
+===== LEX INDEX 3 START =====
+Deps time: 114.202 us
+Comp. miss time: 87.023 us
+
+Pieces not pruned: 2 (pruned: 0)
+Total dist time: 2.053 ms
+Average dist time: 1.027 ms
+Maximum dist time: 1.030 ms
+
+Total count time: 260.353 us
+Average count time: 130.177 us
+Maximum count time: 134.230 us
+===== LEX INDEX 3 END =====
+===== LEX INDEX 7 START =====
+Deps time: 3.309 ms
+Comp. miss time: 727.177 us
+
+Pieces not pruned: 8 (pruned: 0)
+Total dist time: 43.211 ms
+Average dist time: 5.401 ms
+Maximum dist time: 6.740 ms
+
+Total count time: 241.040 ms
+Average count time: 30.130 ms
+Maximum count time: 77.063 ms
+===== LEX INDEX 7 END =====
+===== LEX INDEX 8 START =====
+Deps time: 9.346 ms
+Comp. miss time: 1.129 ms
+
+Pieces not pruned: 12 (pruned: 0)
+Total dist time: 65.224 ms
+Average dist time: 5.435 ms
+Maximum dist time: 6.748 ms
+
+Total count time: 317.379 ms
+Average count time: 26.448 ms
+Maximum count time: 43.451 ms
+===== LEX INDEX 8 END =====
+===== LEX INDEX 9 START =====
+Deps time: 6.888 ms
+Comp. miss time: 300.646 us
+
+Pieces not pruned: 10 (pruned: 0)
+Total dist time: 76.730 ms
+Average dist time: 7.673 ms
+Maximum dist time: 14.819 ms
+
+Total count time: 266.980 ms
+Average count time: 26.698 ms
+Maximum count time: 79.222 ms
+===== LEX INDEX 9 END =====
+===== LEX INDEX 13 START =====
+Deps time: 3.253 ms
+Comp. miss time: 735.760 us
+
+Pieces not pruned: 8 (pruned: 0)
+Total dist time: 51.523 ms
+Average dist time: 6.440 ms
+Maximum dist time: 8.089 ms
+
+Total count time: 378.574 ms
+Average count time: 47.322 ms
+Maximum count time: 79.544 ms
+===== LEX INDEX 13 END =====
+===== LEX INDEX 14 START =====
+Deps time: 19.846 ms
+Comp. miss time: 456.095 us
+
+Pieces not pruned: 24 (pruned: 0)
+Total dist time: 107.089 ms
+Average dist time: 4.462 ms
+Maximum dist time: 6.311 ms
+
+Total count time: 258.917 ms
+Average count time: 10.788 ms
+Maximum count time: 20.952 ms
+===== LEX INDEX 14 END =====
+===== LEX INDEX 15 START =====
+Deps time: 14.338 ms
+Comp. miss time: 305.653 us
+
+Pieces not pruned: 24 (pruned: 0)
+Total dist time: 80.635 ms
+Average dist time: 3.360 ms
+Maximum dist time: 5.012 ms
+
+Total count time: 121.596 ms
+Average count time: 5.067 ms
+Maximum count time: 14.071 ms
+===== LEX INDEX 15 END =====
+===== LEX INDEX 19 START =====
+Deps time: 18.343 ms
+Comp. miss time: 300.646 us
+
+Pieces not pruned: 27 (pruned: 0)
+Total dist time: 134.998 ms
+Average dist time: 5.000 ms
+Maximum dist time: 7.758 ms
+
+Total count time: 431.481 ms
+Average count time: 15.981 ms
+Maximum count time: 31.570 ms
+===== LEX INDEX 19 END =====
+===== LEX INDEX 20 START =====
+Deps time: 4.228 ms
+Comp. miss time: 50.545 us
+
+Pieces not pruned: 6 (pruned: 0)
+Total dist time: 37.847 ms
+Average dist time: 6.308 ms
+Maximum dist time: 7.453 ms
+
+Total count time: 148.678 ms
+Average count time: 24.780 ms
+Maximum count time: 32.571 ms
+===== LEX INDEX 20 END =====
+===== LEX INDEX 21 START =====
+Deps time: 3.472 ms
+Comp. miss time: 248.432 us
+
+Pieces not pruned: 8 (pruned: 0)
+Total dist time: 78.927 ms
+Average dist time: 9.866 ms
+Maximum dist time: 30.834 ms
+
+Total count time: 458.953 ms
+Average count time: 57.369 ms
+Maximum count time: 279.063 ms
+===== LEX INDEX 21 END =====
+===== LEX INDEX 22 START =====
+Deps time: 4.253 ms
+Comp. miss time: 52.691 us
+
+Pieces not pruned: 6 (pruned: 0)
+Total dist time: 46.804 ms
+Average dist time: 7.801 ms
+Maximum dist time: 9.106 ms
+
+Total count time: 260.661 ms
+Average count time: 43.443 ms
+Maximum count time: 57.528 ms
+===== LEX INDEX 22 END =====
+===== LEX INDEX 23 START =====
+Deps time: 4.702 ms
+Comp. miss time: 72.956 us
+
+Pieces not pruned: 9 (pruned: 0)
+Total dist time: 56.961 ms
+Average dist time: 6.329 ms
+Maximum dist time: 8.418 ms
+
+Total count time: 186.838 ms
+Average count time: 20.760 ms
+Maximum count time: 34.949 ms
+===== LEX INDEX 23 END =====
+===== LEX INDEX 4 START =====
+Deps time: 323.296 us
+Comp. miss time: 114.679 us
+
+Pieces not pruned: 3 (pruned: 0)
+Total dist time: 8.346 ms
+Average dist time: 2.782 ms
+Maximum dist time: 3.263 ms
+
+Total count time: 39.405 ms
+Average count time: 13.135 ms
+Maximum count time: 22.087 ms
+===== LEX INDEX 4 END =====
+===== LEX INDEX 10 START =====
+Deps time: 5.391 ms
+Comp. miss time: 155.210 us
+
+Pieces not pruned: 12 (pruned: 0)
+Total dist time: 33.215 ms
+Average dist time: 2.768 ms
+Maximum dist time: 3.367 ms
+
+Total count time: 5.504 ms
+Average count time: 458.658 us
+Maximum count time: 527.859 us
+===== LEX INDEX 10 END =====
+===== LEX INDEX 16 START =====
+Deps time: 5.299 ms
+Comp. miss time: 153.303 us
+
+Pieces not pruned: 12 (pruned: 0)
+Total dist time: 36.436 ms
+Average dist time: 3.036 ms
+Maximum dist time: 3.726 ms
+
+Total count time: 5.643 ms
+Average count time: 470.241 us
+Maximum count time: 537.872 us
+===== LEX INDEX 16 END =====
+===== LEX INDEX 24 START =====
+Deps time: 29.818 ms
+Comp. miss time: 584.126 us
+
+Pieces not pruned: 27 (pruned: 0)
+Total dist time: 99.894 ms
+Average dist time: 3.700 ms
+Maximum dist time: 5.419 ms
+
+Total count time: 29.552 ms
+Average count time: 1.095 ms
+Maximum count time: 1.282 ms
+===== LEX INDEX 24 END =====
+total compulsory misses = 3600499
+total capacity misses = 4193700501
+total misses = 4197301000
+time elapsed: 4.278 s
+/home/aduhtkjm/llvm/polybench/stencils/jacobi-1d/jacobi-1d.c
+===== LEX INDEX 3 START =====
+Deps time: 1.013 ms
+Comp. miss time: 68.903 us
+
+Pieces not pruned: 6 (pruned: 0)
+Total dist time: 6.943 ms
+Average dist time: 1.157 ms
+Maximum dist time: 3.405 ms
+
+Total count time: 22.275 ms
+Average count time: 3.712 ms
+Maximum count time: 20.580 ms
+===== LEX INDEX 3 END =====
+===== LEX INDEX 4 START =====
+Deps time: 905.514 us
+Comp. miss time: 102.520 us
+
+Pieces not pruned: 8 (pruned: 0)
+Total dist time: 7.192 ms
+Average dist time: 898.987 us
+Maximum dist time: 1.824 ms
+
+Total count time: 8.311 ms
+Average count time: 1.039 ms
+Maximum count time: 6.108 ms
+===== LEX INDEX 4 END =====
+===== LEX INDEX 5 START =====
+Deps time: 534.773 us
+Comp. miss time: 153.065 us
+
+Pieces not pruned: 4 (pruned: 0)
+Total dist time: 6.074 ms
+Average dist time: 1.518 ms
+Maximum dist time: 1.666 ms
+
+Total count time: 23.103 ms
+Average count time: 5.776 ms
+Maximum count time: 8.215 ms
+===== LEX INDEX 5 END =====
+===== LEX INDEX 8 START =====
+Deps time: 988.007 us
+Comp. miss time: 48.637 us
+
+Pieces not pruned: 4 (pruned: 0)
+Total dist time: 6.120 ms
+Average dist time: 1.530 ms
+Maximum dist time: 3.912 ms
+
+Total count time: 25.669 ms
+Average count time: 6.417 ms
+Maximum count time: 24.944 ms
+===== LEX INDEX 8 END =====
+===== LEX INDEX 9 START =====
+Deps time: 1.376 ms
+Comp. miss time: 62.704 us
+
+Pieces not pruned: 9 (pruned: 0)
+Total dist time: 7.120 ms
+Average dist time: 791.126 us
+Maximum dist time: 966.311 us
+
+Total count time: 7.918 ms
+Average count time: 879.818 us
+Maximum count time: 2.532 ms
+===== LEX INDEX 9 END =====
+===== LEX INDEX 10 START =====
+Deps time: 1.019 ms
+Comp. miss time: 114.441 us
+
+Pieces not pruned: 7 (pruned: 0)
+Total dist time: 10.012 ms
+Average dist time: 1.430 ms
+Maximum dist time: 1.916 ms
+
+Total count time: 36.097 ms
+Average count time: 5.157 ms
+Maximum count time: 8.774 ms
+===== LEX INDEX 10 END =====
+===== LEX INDEX 6 START =====
+Deps time: 499.487 us
+Comp. miss time: 110.865 us
+
+Pieces not pruned: 3 (pruned: 0)
+Total dist time: 5.178 ms
+Average dist time: 1.726 ms
+Maximum dist time: 2.024 ms
+
+Total count time: 19.873 ms
+Average count time: 6.624 ms
+Maximum count time: 11.695 ms
+===== LEX INDEX 6 END =====
+===== LEX INDEX 11 START =====
+Deps time: 1.926 ms
+Comp. miss time: 84.400 us
+
+Pieces not pruned: 9 (pruned: 0)
+Total dist time: 15.424 ms
+Average dist time: 1.714 ms
+Maximum dist time: 2.170 ms
+
+Total count time: 53.992 ms
+Average count time: 5.999 ms
+Maximum count time: 11.431 ms
+===== LEX INDEX 11 END =====
+total compulsory misses = 4000
+total capacity misses = 0
+total misses = 4000
+time elapsed: 274.952 ms
+/home/aduhtkjm/llvm/polybench/stencils/heat-3d/heat-3d.c
+===== LEX INDEX 5 START =====
+Deps time: 101.744 ms
+Comp. miss time: 4.984 ms
+
+Pieces not pruned: 19 (pruned: 0)
+Total dist time: 566.918 ms
+Average dist time: 29.838 ms
+Maximum dist time: 51.120 ms
+
+Total count time: 26.638 s
+Average count time: 1.402 s
+Maximum count time: 5.457 s
+===== LEX INDEX 5 END =====
+===== LEX INDEX 6 START =====
+Deps time: 289.279 ms
+Comp. miss time: 4.405 ms
+
+Pieces not pruned: 74 (pruned: 0)
+Total dist time: 876.545 ms
+Average dist time: 11.845 ms
+Maximum dist time: 48.977 ms
+
+Total count time: 2.527 s
+Average count time: 34.153 ms
+Maximum count time: 837.882 ms
+===== LEX INDEX 6 END =====
+===== LEX INDEX 7 START =====
+Deps time: 346.360 ms
+Comp. miss time: 3.419 ms
+
+Pieces not pruned: 46 (pruned: 0)
+Total dist time: 1.475 s
+Average dist time: 32.057 ms
+Maximum dist time: 155.573 ms
+
+Total count time: 20.105 s
+Average count time: 437.064 ms
+Maximum count time: 5.478 s
+===== LEX INDEX 7 END =====
+===== LEX INDEX 8 START =====
+Deps time: 96.884 ms
+Comp. miss time: 1.879 ms
+
+Pieces not pruned: 20 (pruned: 0)
+Total dist time: 796.531 ms
+Average dist time: 39.827 ms
+Maximum dist time: 79.448 ms
+
+Total count time: 16.597 s
+Average count time: 829.847 ms
+Maximum count time: 3.373 s
+===== LEX INDEX 8 END =====
+===== LEX INDEX 9 START =====
+Deps time: 206.408 ms
+Comp. miss time: 1.333 ms
+
+Pieces not pruned: 36 (pruned: 0)
+Total dist time: 385.056 ms
+Average dist time: 10.696 ms
+Maximum dist time: 13.884 ms
+
+Total count time: 27.999 ms
+Average count time: 777.755 us
+Maximum count time: 877.142 us
+===== LEX INDEX 9 END =====
+===== LEX INDEX 10 START =====
+Deps time: 214.652 ms
+Comp. miss time: 3.864 ms
+
+Pieces not pruned: 31 (pruned: 0)
+Total dist time: 1.506 s
+Average dist time: 48.587 ms
+Maximum dist time: 482.023 ms
+
+Total count time: 25.515 s
+Average count time: 823.071 ms
+Maximum count time: 11.177 s
+===== LEX INDEX 10 END =====
+===== LEX INDEX 11 START =====
+Deps time: 186.923 ms
+Comp. miss time: 5.123 ms
+
+Pieces not pruned: 46 (pruned: 0)
+Total dist time: 1.494 s
+Average dist time: 32.473 ms
+Maximum dist time: 95.852 ms
+
+Total count time: 17.209 s
+Average count time: 374.114 ms
+Maximum count time: 4.129 s
+===== LEX INDEX 11 END =====
+===== LEX INDEX 12 START =====
+Deps time: 305.417 ms
+Comp. miss time: 1.406 ms
+
+Pieces not pruned: 36 (pruned: 0)
+Total dist time: 420.070 ms
+Average dist time: 11.669 ms
+Maximum dist time: 15.680 ms
+
+Total count time: 28.155 ms
+Average count time: 782.092 us
+Maximum count time: 851.631 us
+===== LEX INDEX 12 END =====
+===== LEX INDEX 13 START =====
+Deps time: 154.546 ms
+Comp. miss time: 2.136 ms
+
+Pieces not pruned: 22 (pruned: 0)
+Total dist time: 1.323 s
+Average dist time: 60.152 ms
+Maximum dist time: 497.780 ms
+
+Total count time: 26.296 s
+Average count time: 1.195 s
+Maximum count time: 13.420 s
+===== LEX INDEX 13 END =====
+===== LEX INDEX 14 START =====
+Deps time: 394.592 ms
+Comp. miss time: 1.340 ms
+
+Pieces not pruned: 36 (pruned: 0)
+Total dist time: 426.968 ms
+Average dist time: 11.860 ms
+Maximum dist time: 15.213 ms
+
+Total count time: 13.481 ms
+Average count time: 374.469 us
+Maximum count time: 419.617 us
+===== LEX INDEX 14 END =====
+===== LEX INDEX 19 START =====
+Deps time: 112.672 ms
+Comp. miss time: 1.574 ms
+
+Pieces not pruned: 28 (pruned: 0)
+Total dist time: 791.898 ms
+Average dist time: 28.282 ms
+Maximum dist time: 51.920 ms
+
+Total count time: 51.129 s
+Average count time: 1.826 s
+Maximum count time: 7.284 s
+===== LEX INDEX 19 END =====
+===== LEX INDEX 20 START =====
+Deps time: 347.447 ms
+Comp. miss time: 5.079 ms
+
+Pieces not pruned: 81 (pruned: 0)
+Total dist time: 900.520 ms
+Average dist time: 11.118 ms
+Maximum dist time: 17.550 ms
+
+Total count time: 2.358 s
+Average count time: 29.107 ms
+Maximum count time: 392.441 ms
+===== LEX INDEX 20 END =====
+===== LEX INDEX 21 START =====
+Deps time: 371.809 ms
+Comp. miss time: 5.350 ms
+
+Pieces not pruned: 46 (pruned: 0)
+Total dist time: 1.527 s
+Average dist time: 33.199 ms
+Maximum dist time: 158.258 ms
+
+Total count time: 26.076 s
+Average count time: 566.877 ms
+Maximum count time: 7.743 s
+===== LEX INDEX 21 END =====
+===== LEX INDEX 22 START =====
+Deps time: 170.889 ms
+Comp. miss time: 2.203 ms
+
+Pieces not pruned: 40 (pruned: 0)
+Total dist time: 1.166 s
+Average dist time: 29.152 ms
+Maximum dist time: 52.727 ms
+
+Total count time: 24.632 s
+Average count time: 615.797 ms
+Maximum count time: 4.040 s
+===== LEX INDEX 22 END =====
+===== LEX INDEX 23 START =====
+Deps time: 291.653 ms
+Comp. miss time: 1.466 ms
+
+Pieces not pruned: 36 (pruned: 0)
+Total dist time: 424.172 ms
+Average dist time: 11.783 ms
+Maximum dist time: 15.221 ms
+
+Total count time: 27.492 ms
+Average count time: 763.661 us
+Maximum count time: 860.691 us
+===== LEX INDEX 23 END =====
+===== LEX INDEX 24 START =====
+Deps time: 240.005 ms
+Comp. miss time: 3.962 ms
+
+Pieces not pruned: 31 (pruned: 0)
+Total dist time: 1.566 s
+Average dist time: 50.501 ms
+Maximum dist time: 494.110 ms
+
+Total count time: 40.919 s
+Average count time: 1.320 s
+Maximum count time: 18.859 s
+===== LEX INDEX 24 END =====
+===== LEX INDEX 25 START =====
+Deps time: 253.483 ms
+Comp. miss time: 6.989 ms
+
+Pieces not pruned: 58 (pruned: 0)
+Total dist time: 1.346 s
+Average dist time: 23.209 ms
+Maximum dist time: 53.140 ms
+
+Total count time: 18.025 s
+Average count time: 310.772 ms
+Maximum count time: 4.134 s
+===== LEX INDEX 25 END =====
+===== LEX INDEX 26 START =====
+Deps time: 398.768 ms
+Comp. miss time: 1.482 ms
+
+Pieces not pruned: 36 (pruned: 0)
+Total dist time: 458.536 ms
+Average dist time: 12.737 ms
+Maximum dist time: 17.020 ms
+
+Total count time: 28.190 ms
+Average count time: 783.059 us
+Maximum count time: 854.492 us
+===== LEX INDEX 26 END =====
+===== LEX INDEX 27 START =====
+Deps time: 182.664 ms
+Comp. miss time: 2.095 ms
+
+Pieces not pruned: 22 (pruned: 0)
+Total dist time: 1.380 s
+Average dist time: 62.710 ms
+Maximum dist time: 510.636 ms
+
+Total count time: 43.791 s
+Average count time: 1.990 s
+Maximum count time: 22.031 s
+===== LEX INDEX 27 END =====
+===== LEX INDEX 28 START =====
+Deps time: 503.322 ms
+Comp. miss time: 1.467 ms
+
+Pieces not pruned: 36 (pruned: 0)
+Total dist time: 472.597 ms
+Average dist time: 13.128 ms
+Maximum dist time: 16.718 ms
+
+Total count time: 13.630 ms
+Average count time: 378.622 us
+Maximum count time: 432.253 us
+===== LEX INDEX 28 END =====
+===== LEX INDEX 15 START =====
+Deps time: 106.694 ms
+Comp. miss time: 5.515 ms
+
+Pieces not pruned: 19 (pruned: 0)
+Total dist time: 670.928 ms
+Average dist time: 35.312 ms
+Maximum dist time: 47.745 ms
+
+Total count time: 23.561 s
+Average count time: 1.240 s
+Maximum count time: 4.986 s
+===== LEX INDEX 15 END =====
+===== LEX INDEX 29 START =====
+Deps time: 873.356 ms
+Comp. miss time: 4.304 ms
+
+Pieces not pruned: 57 (pruned: 0)
+Total dist time: 2.000 s
+Average dist time: 35.093 ms
+Maximum dist time: 49.417 ms
+
+Total count time: 66.679 s
+Average count time: 1.170 s
+Maximum count time: 5.875 s
+===== LEX INDEX 29 END =====
+total compulsory misses = 3453152
+total capacity misses = 3366154848
+total misses = 3369608000
+time elapsed: 463.347 s
+/home/aduhtkjm/llvm/polybench/datamining/covariance/covariance.c
+===== LEX INDEX 5 START =====
+Deps time: 45.776 us
+Comp. miss time: 0.000 us
+
+===== LEX INDEX 6 START =====
+Deps time: 559.092 us
+Comp. miss time: 25.511 us
+
+Pieces not pruned: 4 (pruned: 0)
+Total dist time: 2.172 ms
+Average dist time: 542.939 us
+Maximum dist time: 695.944 us
+
+Total count time: 516.891 us
+Average count time: 129.223 us
+Maximum count time: 150.919 us
+===== LEX INDEX 6 END =====
+===== LEX INDEX 8 START =====
+Deps time: 329.018 us
+Comp. miss time: 4.530 us
+
+Pieces not pruned: 2 (pruned: 0)
+Total dist time: 574.827 us
+Average dist time: 287.414 us
+Maximum dist time: 322.580 us
+
+Total count time: 8.583 us
+Average count time: 4.292 us
+Maximum count time: 5.007 us
+===== LEX INDEX 8 END =====
+===== LEX INDEX 12 START =====
+Deps time: 1.395 ms
+Comp. miss time: 21.696 us
+
+Pieces not pruned: 4 (pruned: 0)
+Total dist time: 3.942 ms
+Average dist time: 985.622 us
+Maximum dist time: 1.399 ms
+
+Total count time: 5.083 ms
+Average count time: 1.271 ms
+Maximum count time: 1.928 ms
+===== LEX INDEX 12 END =====
+===== LEX INDEX 13 START =====
+Deps time: 205.517 us
+Comp. miss time: 22.888 us
+
+Pieces not pruned: 4 (pruned: 0)
+Total dist time: 11.278 ms
+Average dist time: 2.820 ms
+Maximum dist time: 3.527 ms
+
+Total count time: 70.016 ms
+Average count time: 17.504 ms
+Maximum count time: 54.245 ms
+===== LEX INDEX 13 END =====
+===== LEX INDEX 19 START =====
+Deps time: 3.597 ms
+Comp. miss time: 123.978 us
+
+Pieces not pruned: 8 (pruned: 0)
+Total dist time: 59.978 ms
+Average dist time: 7.497 ms
+Maximum dist time: 13.587 ms
+
+Total count time: 65.561 ms
+Average count time: 8.195 ms
+Maximum count time: 19.247 ms
+===== LEX INDEX 19 END =====
+===== LEX INDEX 20 START =====
+Deps time: 4.265 ms
+Comp. miss time: 130.892 us
+
+Pieces not pruned: 12 (pruned: 0)
+Total dist time: 105.940 ms
+Average dist time: 8.828 ms
+Maximum dist time: 19.854 ms
+
+Total count time: 3.343 s
+Average count time: 278.590 ms
+Maximum count time: 3.199 s
+===== LEX INDEX 20 END =====
+===== LEX INDEX 21 START =====
+Deps time: 1.472 ms
+Comp. miss time: 57.697 us
+
+Pieces not pruned: 6 (pruned: 0)
+Total dist time: 13.865 ms
+Average dist time: 2.311 ms
+Maximum dist time: 3.193 ms
+
+Total count time: 2.963 ms
+Average count time: 493.844 us
+Maximum count time: 711.441 us
+===== LEX INDEX 21 END =====
+===== LEX INDEX 23 START =====
+Deps time: 888.586 us
+Comp. miss time: 12.875 us
+
+Pieces not pruned: 3 (pruned: 0)
+Total dist time: 4.618 ms
+Average dist time: 1.539 ms
+Maximum dist time: 1.841 ms
+
+Total count time: 19.550 us
+Average count time: 6.517 us
+Maximum count time: 7.153 us
+===== LEX INDEX 23 END =====
+===== LEX INDEX 25 START =====
+Deps time: 2.037 ms
+Comp. miss time: 12.875 us
+
+Pieces not pruned: 3 (pruned: 0)
+Total dist time: 4.835 ms
+Average dist time: 1.612 ms
+Maximum dist time: 2.004 ms
+
+Total count time: 19.789 us
+Average count time: 6.596 us
+Maximum count time: 6.914 us
+===== LEX INDEX 25 END =====
+===== LEX INDEX 3 START =====
+Deps time: 47.684 us
+Comp. miss time: 0.000 us
+
+===== LEX INDEX 7 START =====
+Deps time: 805.378 us
+Comp. miss time: 20.742 us
+
+Pieces not pruned: 4 (pruned: 0)
+Total dist time: 2.546 ms
+Average dist time: 636.578 us
+Maximum dist time: 682.116 us
+
+Total count time: 23.842 us
+Average count time: 5.960 us
+Maximum count time: 6.437 us
+===== LEX INDEX 7 END =====
+===== LEX INDEX 9 START =====
+Deps time: 427.961 us
+Comp. miss time: 4.292 us
+
+Pieces not pruned: 2 (pruned: 0)
+Total dist time: 586.271 us
+Average dist time: 293.136 us
+Maximum dist time: 335.932 us
+
+Total count time: 9.060 us
+Average count time: 4.530 us
+Maximum count time: 5.245 us
+===== LEX INDEX 9 END =====
+===== LEX INDEX 14 START =====
+Deps time: 491.381 us
+Comp. miss time: 19.312 us
+
+Pieces not pruned: 4 (pruned: 0)
+Total dist time: 2.059 ms
+Average dist time: 514.746 us
+Maximum dist time: 560.760 us
+
+Total count time: 23.842 us
+Average count time: 5.960 us
+Maximum count time: 6.437 us
+===== LEX INDEX 14 END =====
+===== LEX INDEX 17 START =====
+Deps time: 142.336 us
+Comp. miss time: 0.000 us
+
+===== LEX INDEX 22 START =====
+Deps time: 2.543 ms
+Comp. miss time: 56.267 us
+
+Pieces not pruned: 6 (pruned: 0)
+Total dist time: 15.482 ms
+Average dist time: 2.580 ms
+Maximum dist time: 3.038 ms
+
+Total count time: 46.492 us
+Average count time: 7.749 us
+Maximum count time: 8.106 us
+===== LEX INDEX 22 END =====
+===== LEX INDEX 24 START =====
+Deps time: 1.394 ms
+Comp. miss time: 12.875 us
+
+Pieces not pruned: 3 (pruned: 0)
+Total dist time: 4.600 ms
+Average dist time: 1.533 ms
+Maximum dist time: 1.889 ms
+
+Total count time: 19.550 us
+Average count time: 6.517 us
+Maximum count time: 6.676 us
+===== LEX INDEX 24 END =====
+===== LEX INDEX 26 START =====
+Deps time: 1.687 ms
+Comp. miss time: 97.990 us
+
+Pieces not pruned: 2 (pruned: 0)
+Total dist time: 2.486 ms
+Average dist time: 1.243 ms
+Maximum dist time: 1.364 ms
+
+Total count time: 14.067 us
+Average count time: 7.033 us
+Maximum count time: 7.153 us
+===== LEX INDEX 26 END =====
+total compulsory misses = 3121200
+total capacity misses = 913208212
+total misses = 916329412
+time elapsed: 3.762 s
+/home/aduhtkjm/llvm/polybench/datamining/correlation/correlation.c
+===== LEX INDEX 5 START =====
+Deps time: 47.445 us
+Comp. miss time: 0.000 us
+
+===== LEX INDEX 6 START =====
+Deps time: 534.296 us
+Comp. miss time: 20.981 us
+
+Pieces not pruned: 4 (pruned: 0)
+Total dist time: 2.095 ms
+Average dist time: 523.746 us
+Maximum dist time: 686.169 us
+
+Total count time: 526.428 us
+Average count time: 131.607 us
+Maximum count time: 166.178 us
+===== LEX INDEX 6 END =====
+===== LEX INDEX 8 START =====
+Deps time: 347.853 us
+Comp. miss time: 4.530 us
+
+Pieces not pruned: 2 (pruned: 0)
+Total dist time: 563.622 us
+Average dist time: 281.811 us
+Maximum dist time: 314.236 us
+
+Total count time: 8.345 us
+Average count time: 4.172 us
+Maximum count time: 4.768 us
+===== LEX INDEX 8 END =====
+===== LEX INDEX 13 START =====
+Deps time: 200.272 us
+Comp. miss time: 20.742 us
+
+Pieces not pruned: 4 (pruned: 0)
+Total dist time: 18.278 ms
+Average dist time: 4.569 ms
+Maximum dist time: 5.199 ms
+
+Total count time: 37.696 ms
+Average count time: 9.424 ms
+Maximum count time: 13.029 ms
+===== LEX INDEX 13 END =====
+===== LEX INDEX 14 START =====
+Deps time: 1.765 ms
+Comp. miss time: 20.504 us
+
+Pieces not pruned: 4 (pruned: 0)
+Total dist time: 7.001 ms
+Average dist time: 1.750 ms
+Maximum dist time: 2.382 ms
+
+Total count time: 9.888 ms
+Average count time: 2.472 ms
+Maximum count time: 5.798 ms
+===== LEX INDEX 14 END =====
+===== LEX INDEX 15 START =====
+Deps time: 477.314 us
+Comp. miss time: 20.504 us
+
+Pieces not pruned: 4 (pruned: 0)
+Total dist time: 4.508 ms
+Average dist time: 1.127 ms
+Maximum dist time: 1.272 ms
+
+Total count time: 443.697 us
+Average count time: 110.924 us
+Maximum count time: 125.885 us
+===== LEX INDEX 15 END =====
+===== LEX INDEX 16 START =====
+Deps time: 2.469 ms
+Comp. miss time: 21.935 us
+
+Pieces not pruned: 4 (pruned: 0)
+Total dist time: 4.819 ms
+Average dist time: 1.205 ms
+Maximum dist time: 1.253 ms
+
+Total count time: 559.330 us
+Average count time: 139.832 us
+Maximum count time: 153.780 us
+===== LEX INDEX 16 END =====
+===== LEX INDEX 17 START =====
+Deps time: 503.778 us
+Comp. miss time: 20.742 us
+
+Pieces not pruned: 4 (pruned: 0)
+Total dist time: 5.229 ms
+Average dist time: 1.307 ms
+Maximum dist time: 1.650 ms
+
+Total count time: 1.552 ms
+Average count time: 388.026 us
+Maximum count time: 414.133 us
+===== LEX INDEX 17 END =====
+===== LEX INDEX 19 START =====
+Deps time: 320.196 us
+Comp. miss time: 4.053 us
+
+Pieces not pruned: 2 (pruned: 0)
+Total dist time: 1.070 ms
+Average dist time: 535.011 us
+Maximum dist time: 606.537 us
+
+Total count time: 12.159 us
+Average count time: 6.080 us
+Maximum count time: 8.106 us
+===== LEX INDEX 19 END =====
+===== LEX INDEX 21 START =====
+Deps time: 644.445 us
+Comp. miss time: 4.768 us
+
+Pieces not pruned: 2 (pruned: 0)
+Total dist time: 1.060 ms
+Average dist time: 529.766 us
+Maximum dist time: 533.819 us
+
+Total count time: 9.775 us
+Average count time: 4.888 us
+Maximum count time: 5.007 us
+===== LEX INDEX 21 END =====
+===== LEX INDEX 23 START =====
+Deps time: 1.102 ms
+Comp. miss time: 4.768 us
+
+Pieces not pruned: 2 (pruned: 0)
+Total dist time: 1.137 ms
+Average dist time: 568.390 us
+Maximum dist time: 638.485 us
+
+Total count time: 9.298 us
+Average count time: 4.649 us
+Maximum count time: 5.245 us
+===== LEX INDEX 23 END =====
+===== LEX INDEX 24 START =====
+Deps time: 1.359 ms
+Comp. miss time: 4.530 us
+
+Pieces not pruned: 2 (pruned: 0)
+Total dist time: 1.194 ms
+Average dist time: 596.762 us
+Maximum dist time: 616.789 us
+
+Total count time: 9.775 us
+Average count time: 4.888 us
+Maximum count time: 5.245 us
+===== LEX INDEX 24 END =====
+===== LEX INDEX 28 START =====
+Deps time: 2.062 ms
+Comp. miss time: 20.742 us
+
+Pieces not pruned: 4 (pruned: 0)
+Total dist time: 9.077 ms
+Average dist time: 2.269 ms
+Maximum dist time: 2.878 ms
+
+Total count time: 14.414 ms
+Average count time: 3.603 ms
+Maximum count time: 7.279 ms
+===== LEX INDEX 28 END =====
+===== LEX INDEX 29 START =====
+Deps time: 1.026 ms
+Comp. miss time: 23.842 us
+
+Pieces not pruned: 4 (pruned: 0)
+Total dist time: 20.464 ms
+Average dist time: 5.116 ms
+Maximum dist time: 6.707 ms
+
+Total count time: 95.083 ms
+Average count time: 23.771 ms
+Maximum count time: 64.313 ms
+===== LEX INDEX 29 END =====
+===== LEX INDEX 31 START =====
+Deps time: 3.838 ms
+Comp. miss time: 20.266 us
+
+Pieces not pruned: 4 (pruned: 0)
+Total dist time: 9.517 ms
+Average dist time: 2.379 ms
+Maximum dist time: 3.216 ms
+
+Total count time: 17.377 ms
+Average count time: 4.344 ms
+Maximum count time: 6.503 ms
+===== LEX INDEX 31 END =====
+===== LEX INDEX 32 START =====
+Deps time: 2.568 ms
+Comp. miss time: 20.266 us
+
+Pieces not pruned: 4 (pruned: 0)
+Total dist time: 4.320 ms
+Average dist time: 1.080 ms
+Maximum dist time: 1.185 ms
+
+Total count time: 442.266 us
+Average count time: 110.567 us
+Maximum count time: 116.825 us
+===== LEX INDEX 32 END =====
+===== LEX INDEX 39 START =====
+Deps time: 4.625 ms
+Comp. miss time: 90.599 us
+
+Pieces not pruned: 8 (pruned: 0)
+Total dist time: 59.173 ms
+Average dist time: 7.397 ms
+Maximum dist time: 13.488 ms
+
+Total count time: 69.170 ms
+Average count time: 8.646 ms
+Maximum count time: 17.896 ms
+===== LEX INDEX 39 END =====
+===== LEX INDEX 40 START =====
+Deps time: 10.063 ms
+Comp. miss time: 90.122 us
+
+Pieces not pruned: 8 (pruned: 0)
+Total dist time: 99.226 ms
+Average dist time: 12.403 ms
+Maximum dist time: 19.233 ms
+
+Total count time: 6.572 s
+Average count time: 821.479 ms
+Maximum count time: 3.245 s
+===== LEX INDEX 40 END =====
+===== LEX INDEX 41 START =====
+Deps time: 1.409 ms
+Comp. miss time: 52.691 us
+
+Pieces not pruned: 6 (pruned: 0)
+Total dist time: 13.109 ms
+Average dist time: 2.185 ms
+Maximum dist time: 2.941 ms
+
+Total count time: 2.840 ms
+Average count time: 473.340 us
+Maximum count time: 542.879 us
+===== LEX INDEX 41 END =====
+===== LEX INDEX 43 START =====
+Deps time: 888.586 us
+Comp. miss time: 12.875 us
+
+Pieces not pruned: 3 (pruned: 0)
+Total dist time: 4.261 ms
+Average dist time: 1.420 ms
+Maximum dist time: 1.669 ms
+
+Total count time: 19.550 us
+Average count time: 6.517 us
+Maximum count time: 6.676 us
+===== LEX INDEX 43 END =====
+===== LEX INDEX 3 START =====
+Deps time: 46.492 us
+Comp. miss time: 0.000 us
+
+===== LEX INDEX 7 START =====
+Deps time: 846.624 us
+Comp. miss time: 21.219 us
+
+Pieces not pruned: 4 (pruned: 0)
+Total dist time: 2.433 ms
+Average dist time: 608.206 us
+Maximum dist time: 657.558 us
+
+Total count time: 22.173 us
+Average count time: 5.543 us
+Maximum count time: 6.437 us
+===== LEX INDEX 7 END =====
+===== LEX INDEX 9 START =====
+Deps time: 482.798 us
+Comp. miss time: 4.530 us
+
+Pieces not pruned: 2 (pruned: 0)
+Total dist time: 554.323 us
+Average dist time: 277.162 us
+Maximum dist time: 309.944 us
+
+Total count time: 8.345 us
+Average count time: 4.172 us
+Maximum count time: 4.768 us
+===== LEX INDEX 9 END =====
+===== LEX INDEX 11 START =====
+Deps time: 72.241 us
+Comp. miss time: 0.000 us
+
+===== LEX INDEX 18 START =====
+Deps time: 836.372 us
+Comp. miss time: 29.325 us
+
+Pieces not pruned: 4 (pruned: 0)
+Total dist time: 4.998 ms
+Average dist time: 1.250 ms
+Maximum dist time: 1.323 ms
+
+Total count time: 25.034 us
+Average count time: 6.258 us
+Maximum count time: 6.914 us
+===== LEX INDEX 18 END =====
+===== LEX INDEX 20 START =====
+Deps time: 478.745 us
+Comp. miss time: 4.530 us
+
+Pieces not pruned: 2 (pruned: 0)
+Total dist time: 1.017 ms
+Average dist time: 508.428 us
+Maximum dist time: 514.984 us
+
+Total count time: 9.775 us
+Average count time: 4.888 us
+Maximum count time: 5.245 us
+===== LEX INDEX 20 END =====
+===== LEX INDEX 22 START =====
+Deps time: 879.765 us
+Comp. miss time: 4.530 us
+
+Pieces not pruned: 2 (pruned: 0)
+Total dist time: 1.101 ms
+Average dist time: 550.628 us
+Maximum dist time: 565.052 us
+
+Total count time: 11.921 us
+Average count time: 5.960 us
+Maximum count time: 6.676 us
+===== LEX INDEX 22 END =====
+===== LEX INDEX 25 START =====
+Deps time: 1.667 ms
+Comp. miss time: 4.530 us
+
+Pieces not pruned: 2 (pruned: 0)
+Total dist time: 1.192 ms
+Average dist time: 596.166 us
+Maximum dist time: 617.981 us
+
+Total count time: 9.775 us
+Average count time: 4.888 us
+Maximum count time: 5.245 us
+===== LEX INDEX 25 END =====
+===== LEX INDEX 30 START =====
+Deps time: 1.640 ms
+Comp. miss time: 19.789 us
+
+Pieces not pruned: 4 (pruned: 0)
+Total dist time: 3.245 ms
+Average dist time: 811.219 us
+Maximum dist time: 825.167 us
+
+Total count time: 25.511 us
+Average count time: 6.378 us
+Maximum count time: 6.437 us
+===== LEX INDEX 30 END =====
+===== LEX INDEX 33 START =====
+Deps time: 3.675 ms
+Comp. miss time: 19.789 us
+
+Pieces not pruned: 4 (pruned: 0)
+Total dist time: 4.079 ms
+Average dist time: 1.020 ms
+Maximum dist time: 1.157 ms
+
+Total count time: 24.557 us
+Average count time: 6.139 us
+Maximum count time: 6.437 us
+===== LEX INDEX 33 END =====
+===== LEX INDEX 35 START =====
+Deps time: 67.472 us
+Comp. miss time: 0.000 us
+
+===== LEX INDEX 37 START =====
+Deps time: 139.713 us
+Comp. miss time: 72.718 us
+
+===== LEX INDEX 42 START =====
+Deps time: 2.539 ms
+Comp. miss time: 54.836 us
+
+Pieces not pruned: 6 (pruned: 0)
+Total dist time: 14.528 ms
+Average dist time: 2.421 ms
+Maximum dist time: 2.821 ms
+
+Total count time: 48.161 us
+Average count time: 8.027 us
+Maximum count time: 8.583 us
+===== LEX INDEX 42 END =====
+===== LEX INDEX 44 START =====
+Deps time: 196.457 us
+Comp. miss time: 0.000 us
+
+===== LEX INDEX 45 START =====
+Deps time: 52.214 us
+Comp. miss time: 104.904 us
+
+total compulsory misses = 3122400
+total capacity misses = 914889779
+total misses = 918012179
+time elapsed: 7.180 s

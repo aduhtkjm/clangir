@@ -13,7 +13,6 @@ class RevertLICM : public RevertLICMBase<RevertLICM> {
   using RevertLICMBase::RevertLICMBase;
 
   void runOnOperation() override;
-private:
 };
 
 void RevertLICM::runOnOperation() {

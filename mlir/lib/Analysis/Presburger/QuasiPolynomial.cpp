@@ -222,6 +222,86 @@ QuasiPolynomial QuasiPolynomial::partialEvaluate(unsigned index, ArrayRef<Dynami
   return QuasiPolynomial(getNumInputs() - 1, coefficients, aff).simplify().collectTerms();
 }
 
+struct Interval {
+  Fraction min;
+  Fraction max;
+};
+
+static Interval evaluateAffine(const llvm::SmallVector<Fraction> &g,
+  const llvm::ArrayRef<std::pair<DynamicAPInt, DynamicAPInt>> &varBounds) {
+  Fraction min = g.back();
+  Fraction max = g.back();
+
+  for (size_t k = 0; k < varBounds.size(); k++) {
+    Fraction term1 = g[k] * varBounds[k].first;
+    Fraction term2 = g[k] * varBounds[k].second;
+    
+    if (term1 < term2) {
+      min += term1;
+      max += term2;
+    } else {
+      min += term2;
+      max += term1;
+    }
+  }
+  return {min, max};
+}
+
+DynamicAPInt QuasiPolynomial::computeCertifiedLowerBound(llvm::ArrayRef<std::pair<DynamicAPInt, DynamicAPInt>> varBounds) const {
+  Fraction total = 0;
+  for (size_t i = 0; i < coefficients.size(); ++i) {
+    Interval productInterval { 1, 1 };
+
+    for (const auto& aff : affine[i]) {
+      Interval range = evaluateAffine(aff, varBounds);
+      Interval floored = { floor(range.min), floor(range.max) };
+
+      // Interval Multiplication: [a, b] * [c, d]
+      Fraction v1 = productInterval.min * floored.min;
+      Fraction v2 = productInterval.min * floored.max;
+      Fraction v3 = productInterval.max * floored.min;
+      Fraction v4 = productInterval.max * floored.max;
+
+      productInterval.min = std::min({v1, v2, v3, v4});
+      productInterval.max = std::max({v1, v2, v3, v4});
+    }
+
+    if (coefficients[i] >= 0)
+      total += coefficients[i] * productInterval.min;
+    else
+      total += coefficients[i] * productInterval.max;
+  }
+
+  return floor(total);
+}
+
+DynamicAPInt QuasiPolynomial::computeCertifiedUpperBound(llvm::ArrayRef<std::pair<DynamicAPInt, DynamicAPInt>> varBounds) const {
+  Fraction total = 0;
+  for (size_t i = 0; i < coefficients.size(); ++i) {
+    Interval productInterval { 1, 1 };
+
+    for (const auto& aff : affine[i]) {
+      Interval range = evaluateAffine(aff, varBounds);
+
+      // Interval multiplication.
+      Fraction v1 = productInterval.min * range.min;
+      Fraction v2 = productInterval.min * range.max;
+      Fraction v3 = productInterval.max * range.min;
+      Fraction v4 = productInterval.max * range.max;
+
+      productInterval.min = std::min({v1, v2, v3, v4});
+      productInterval.max = std::max({v1, v2, v3, v4});
+    }
+
+    if (coefficients[i] >= 0)
+      total += coefficients[i] * productInterval.max;
+    else
+      total += coefficients[i] * productInterval.min;
+  }
+
+  return ceil(total);
+}
+
 void QuasiPolynomial::print(llvm::raw_ostream &os) const {
   if (affine.empty()) {
     os << "<empty>";
